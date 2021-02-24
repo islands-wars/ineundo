@@ -1,0 +1,122 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath(group: 'org.jfrog.buildinfo', name: 'build-info-extractor-gradle', version: '4.+')
+    }
+}
+
+final def folderName = "serv/"
+final def JAVA_ARGS = ['-Xms512M', '-Xmx512M', '-XX:+UseG1GC', '-XX:G1HeapRegionSize=4M', '-XX:+UnlockExperimentalVMOptions', '-XX:+ParallelRefProcEnabled', '-XX:+AlwaysPreTouch', '--add-opens', 'java.base/java.lang=ALL-UNNAMED']
+
+apply plugin: 'com.jfrog.artifactory'
+apply plugin: 'maven-publish'
+apply plugin: 'java'
+
+group 'fr.islandswars'
+version '0.1'
+
+sourceCompatibility = 1.15
+targetCompatibility = 1.15
+[compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+
+repositories {
+    mavenCentral()
+    maven {
+        name 'velocity'
+        url 'https://repo.velocitypowered.com/snapshots/'
+    }
+    maven {
+        name 'islandswars'
+        url 'http://jfrog.islandswars.fr:8082/artifactory/islandswars/'
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['src/main/java']
+        }
+    }
+    test {
+        java {
+            srcDirs = ['src/test/java']
+        }
+    }
+}
+
+dependencies {
+    compile 'fr.islandswars:commons:0.2'
+    compileOnly 'com.velocitypowered:velocity-api:1.1.4'
+    annotationProcessor 'com.velocitypowered:velocity-api:1.1.4'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+task setupServer {
+    group 'server'
+    description 'Setup a fresh directory to test our plugin'
+    doLast {
+        File folder = new File(folderName)
+
+        if (!folder.exists())
+            folder.mkdir()
+        else
+            folder.deleteDir()
+
+        def f = new File(folder.path + '/velocity.jar')
+        if (!f.exists()) {
+            new URL('https://versions.velocitypowered.com/download/1.1.4.jar').withInputStream { i -> f.withOutputStream { it << i } }
+        }
+
+        File pluginFolder = file(folder.path + '/' + 'plugins/')
+        pluginFolder.mkdir()
+    }
+}
+
+task cleanPlugin() {
+    group 'deploy'
+    description 'Cleans the plugin in the working directory up'
+
+    File folder = new File(folderName)
+    delete folder.path + 'plugins/ineundo-' + project.version.toString() + '-local.jar'
+}
+
+task deployPlugin(type: Copy, dependsOn: ['cleanPlugin', 'jar']) {
+    group 'deploy'
+    description 'Deploy the plugin'
+
+    File folder = new File(folderName)
+    from "build/libs/ineundo-" + project.version.toString() + '-local.jar'
+    into folder.path + '/plugins'
+}
+
+task startDevServer(type: JavaExec) {
+    group 'server'
+    description 'Start from gradle the paper server'
+
+    File folder = new File(folderName)
+    workingDir = folder.path
+    classpath = fileTree(dir: workingDir, include: '*.jar')
+    main = 'com.velocitypowered.proxy.Velocity'
+    standardInput = System.in
+    ignoreExitValue = true as JavaExecSpec
+    environment 'DEBUG', 'true'
+    jvmArgs JAVA_ARGS
+}
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': rootProject.name, 'Implementation-Version': project.version.toString(), 'main': 'fr.islandswars.ineundo.Ineundo'
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    } {
+        exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
+    }
+}
