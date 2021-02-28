@@ -42,12 +42,14 @@ sourceSets {
     test {
         java {
             srcDirs = ['src/test/java']
+            exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
         }
     }
 }
 
 dependencies {
-    compile 'fr.islandswars:commons:0.2'
+    compile 'fr.islandswars:commons:0.2.2-develop'
+    testCompile 'com.velocitypowered:velocity-api:1.1.4'
     compileOnly 'com.velocitypowered:velocity-api:1.1.4'
     annotationProcessor 'com.velocitypowered:velocity-api:1.1.4'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.0'
@@ -84,7 +86,7 @@ task cleanPlugin() {
     description 'Cleans the plugin in the working directory up'
 
     File folder = new File(folderName)
-    delete folder.path + 'plugins/ineundo-' + project.version.toString() + '-local.jar'
+    delete folder.path + 'plugins/ineundo-' + project.version.toString() + '.jar'
 }
 
 task deployPlugin(type: Copy, dependsOn: ['cleanPlugin', 'jar']) {
@@ -92,7 +94,7 @@ task deployPlugin(type: Copy, dependsOn: ['cleanPlugin', 'jar']) {
     description 'Deploy the plugin'
 
     File folder = new File(folderName)
-    from "build/libs/ineundo-" + project.version.toString() + '-local.jar'
+    from "build/libs/ineundo-" + project.version.toString() + '.jar'
     into folder.path + '/plugins'
 }
 
@@ -116,7 +118,5 @@ jar {
     }
     from {
         configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-    } {
-        exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
     }
 }
