@@ -73,6 +73,10 @@ public class IslandsPlayer {
 		return false;
 	}
 
+	public Locale getLocale() {
+		return locale;
+	}
+
 	public void addRank(IslandsRank rank) {
 		ranks.add(rank);
 	}

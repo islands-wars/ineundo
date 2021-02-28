@@ -207,11 +207,11 @@ public class PlayerListener {
 
 			//check server states AND ban / kick
 			if (serverState == State.STAFF && !player.isStaff()) {
-				kickPlayer(player.getId(), Ineundo.getInstance().getTranslatable().format("player_join_not_staff"));
+				kickPlayer(player.getId(), player.getLocale().format("player_join_not_staff"));
 			}
 			var optSanction = player.isBanned();
 			optSanction.ifPresent(sanction -> {
-				kickPlayer(player.getId(), Ineundo.getInstance().getTranslatable().format("player_join_banned", sanction.getType(), sanction.getAuthor(), new Date(sanction.getSanctionEndTime())));
+				kickPlayer(player.getId(), player.getLocale().format("player_join_banned", sanction.getType().toString().toLowerCase(), sanction.getAuthor(), new Date(sanction.getSanctionEndTime())));
 			});
 			player.depucelage();
 			pendingConnections.replace(player.getId(), Status.HANDLED);
