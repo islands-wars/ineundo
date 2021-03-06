@@ -7,7 +7,11 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
+import fr.islandswars.commons.secrets.DockerSecretsLoader;
+import fr.islandswars.commons.service.ServiceType;
 import fr.islandswars.commons.service.mongodb.MongoDBService;
+import fr.islandswars.ineundo.container.ContainerManager;
+import fr.islandswars.ineundo.listener.PlayerListener;
 import fr.islandswars.ineundo.listener.ServerListener;
 import fr.islandswars.ineundo.player.IslandsPlayer;
 import fr.islandswars.ineundo.player.i18n.Translatable;
@@ -17,6 +21,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import org.bson.Document;
 import org.slf4j.Logger;
 
 /**
@@ -50,10 +56,12 @@ public class Ineundo {
 	private final  Map<UUID, IslandsPlayer>   players;
 	private final  MongoDBService             mongo;
 	private final  ProxyServer                server;
+	private final  ContainerManager           containerManager;
 	private final  Logger                     logger;
 	private final  Path                       dataDirectory;
 	private final  MinecraftChannelIdentifier channel;
 	private final  Translatable               translatable;
+	private final  boolean                    master;
 
 	@Inject
 	public Ineundo(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
@@ -61,10 +69,12 @@ public class Ineundo {
 		this.server = server;
 		this.logger = logger;
 		this.dataDirectory = dataDirectory;
+		this.containerManager = new ContainerManager();
 		this.translatable = new Translatable();
 		this.channel = MinecraftChannelIdentifier.from("core:is");
 		this.mongo = new MongoDBService();
 		this.players = new ConcurrentHashMap<>();
+		this.master = Boolean.parseBoolean(System.getenv("MASTER"));
 	}
 
 	public static Ineundo getInstance() {
@@ -83,6 +93,10 @@ public class Ineundo {
 		players.remove(uuid);
 	}
 
+	public ContainerManager getContainerManager() {
+		return containerManager;
+	}
+
 	public MongoDBService getMongo() {
 		return mongo;
 	}
@@ -99,18 +113,24 @@ public class Ineundo {
 		players.replace(player.getId(), player);
 	}
 
+	public boolean isMaster() {
+		return master;
+	}
+
 	@Subscribe
 	public void onInitialize(ProxyInitializeEvent event) {
 		try {
 			translatable.getLoader().registerCustomProperties(this, dataDirectory);
-			//mongo.load(DockerSecretsLoader.load(ServiceType.MONGODB));
-			//mongo.connect();
+			mongo.load(DockerSecretsLoader.load(ServiceType.MONGODB));
+			mongo.connect();
+
+			containerManager.connect();
 			//connection is async, maybe add delay before we accept connection in order to prevent database not ready state
 			server.getChannelRegistrar().register(getChannel());
-			//server.getEventManager().register(this, new PlayerListener(server, mongo));
+			server.getEventManager().register(this, new PlayerListener(server, mongo));
 			server.getEventManager().register(this, new ServerListener(server));
 
-			/*server.getScheduler().buildTask(this, () -> {
+			server.getScheduler().buildTask(this, () -> {
 				var cmd = new Document("ping", 1);
 				mongo.getConnection().runCommand(cmd, (document, throwable) -> {
 					if (throwable != null) {
@@ -118,7 +138,7 @@ public class Ineundo {
 						server.shutdown();
 					}
 				});
-			}).delay(2L, TimeUnit.SECONDS).schedule();*/
+			}).delay(2L, TimeUnit.SECONDS).schedule();
 		} catch (Exception e) {
 			e.printStackTrace();
 			server.shutdown();
