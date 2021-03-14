@@ -10,6 +10,7 @@ import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import fr.islandswars.commons.secrets.DockerSecretsLoader;
 import fr.islandswars.commons.service.ServiceType;
 import fr.islandswars.commons.service.mongodb.MongoDBService;
+import fr.islandswars.commons.service.redis.RedisService;
 import fr.islandswars.ineundo.container.ContainerManager;
 import fr.islandswars.ineundo.listener.PlayerListener;
 import fr.islandswars.ineundo.listener.ServerListener;
@@ -55,6 +56,7 @@ public class Ineundo {
 	private static Ineundo                    instance;
 	private final  Map<UUID, IslandsPlayer>   players;
 	private final  MongoDBService             mongo;
+	private final  RedisService               redis;
 	private final  ProxyServer                server;
 	private final  ContainerManager           containerManager;
 	private final  Logger                     logger;
@@ -73,6 +75,7 @@ public class Ineundo {
 		this.translatable = new Translatable();
 		this.channel = MinecraftChannelIdentifier.from("core:is");
 		this.mongo = new MongoDBService();
+		this.redis = new RedisService();
 		this.players = new ConcurrentHashMap<>();
 		this.master = Boolean.parseBoolean(System.getenv("MASTER"));
 	}
@@ -122,13 +125,17 @@ public class Ineundo {
 		try {
 			translatable.getLoader().registerCustomProperties(this, dataDirectory);
 			mongo.load(DockerSecretsLoader.load(ServiceType.MONGODB));
+			redis.load(DockerSecretsLoader.load(ServiceType.REDIS));
 			mongo.connect();
+			redis.connect();
 
 			containerManager.connect();
 			//connection is async, maybe add delay before we accept connection in order to prevent database not ready state
 			server.getChannelRegistrar().register(getChannel());
 			server.getEventManager().register(this, new PlayerListener(server, mongo));
 			server.getEventManager().register(this, new ServerListener(server));
+
+			server.getScheduler().buildTask(this, containerManager).repeat(100, TimeUnit.MILLISECONDS).schedule();
 
 			server.getScheduler().buildTask(this, () -> {
 				var cmd = new Document("ping", 1);
@@ -143,6 +150,10 @@ public class Ineundo {
 			e.printStackTrace();
 			server.shutdown();
 		}
+	}
+
+	public RedisService getRedis() {
+		return redis;
 	}
 
 	public MinecraftChannelIdentifier getChannel() {

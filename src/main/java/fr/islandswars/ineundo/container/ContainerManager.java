@@ -1,5 +1,6 @@
 package fr.islandswars.ineundo.container;
 
+import com.velocitypowered.api.proxy.Player;
 import fr.islandswars.commons.secrets.DockerSecretsLoader;
 import fr.islandswars.commons.service.ServiceType;
 import fr.islandswars.commons.service.docker.DockerService;
@@ -32,18 +33,15 @@ import java.util.stream.IntStream;
  * Created the 03/03/2021 at 17:31
  * @since 0.1
  */
-public class ContainerManager {
+public class ContainerManager implements Runnable {
 
-	private final DockerService   service;
-	private final List<Container> containers;
+	private static final int             SWAP_LIMIT = 50;
+	private final        DockerService   service;
+	private final        List<Container> containers;
 
 	public ContainerManager() {
 		this.service = new DockerService();
 		this.containers = new CopyOnWriteArrayList<>();
-	}
-
-	public DockerService getService() {
-		return service;
 	}
 
 	public void connect() throws Exception {
@@ -58,6 +56,36 @@ public class ContainerManager {
 		var container       = new PaperContainer(dockerContainer, type, id);
 		containers.add(container);
 		return container;
+	}
+
+	public DockerService getService() {
+		return service;
+	}
+
+	public int getSwap(ServerType type) {
+		return containers.stream().filter(container -> container.getType().equals(type)).filter(c -> c.getStatus().equals(Status.RUNNING))
+				.map(c -> c.getMaxAllowedPlayer() - c.getOnlinePlayers() - c.getPendingPlayers()).reduce(0, Integer::sum);
+	}
+
+	@Override
+	public void run() {
+		for (ServerType value : ServerType.values()) {
+			//check server state and start new one if needed
+			var swap = getSwap(value);
+			if (swap <= SWAP_LIMIT) {
+				var startedServer   = containers.stream().filter(c -> c.getType().equals(value) && c.getStatus().equals(Status.STARTING)).count();
+				var startedCapacity = value.getMaxPlayer() * startedServer;
+				if (startedCapacity <= SWAP_LIMIT) {
+					var serverToStart = ((int) (SWAP_LIMIT - startedCapacity) / value.getMaxPlayer()) + 1;
+					for (var i = 0; i < serverToStart; i++)
+						createContainer(value);
+				}
+			}
+		}
+	}
+
+	public void connectPlayer(ServerType type, Player player) {
+
 	}
 
 	private int getFreeId(ServerType type) {

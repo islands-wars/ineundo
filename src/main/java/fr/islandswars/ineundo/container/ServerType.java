@@ -28,17 +28,23 @@ import fr.islandswars.commons.service.Key;
  */
 public enum ServerType implements Key {
 
-	HUB("hub", 0.1),
-	PROXY("ineundo", 0.1),
-	ISLANDS("islands", 0.1);
+	HUB("hub", 0.1, 50),
+	PROXY("ineundo", 0.1, 200),
+	ISLANDS("islands", 0.1,25);
 
 	private static final String prefix = "is";
 	private final        String serverName;
 	private final        double version;
+	private final        int maxPlayer;
 
-	ServerType(String serverName, double verison) {
+	ServerType(String serverName, double verison, int maxPlayer) {
 		this.version = verison;
+		this.maxPlayer = maxPlayer;
 		this.serverName = serverName;
+	}
+
+	public int getMaxPlayer() {
+		return maxPlayer;
 	}
 
 	public String getServerName() {

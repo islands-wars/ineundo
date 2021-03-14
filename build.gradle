@@ -48,7 +48,7 @@ sourceSets {
 }
 
 dependencies {
-    compile 'fr.islandswars:commons:0.2.2-develop'
+    compile 'fr.islandswars:commons:0.2.4'
     testCompile 'com.velocitypowered:velocity-api:1.1.4'
     compileOnly 'com.velocitypowered:velocity-api:1.1.4'
     annotationProcessor 'com.velocitypowered:velocity-api:1.1.4'

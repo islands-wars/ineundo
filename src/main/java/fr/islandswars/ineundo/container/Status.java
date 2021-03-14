@@ -1,10 +1,8 @@
 package fr.islandswars.ineundo.container;
 
-import fr.islandswars.commons.service.docker.DockerContainer;
-
 /**
- * File <b>PaperContainer</b> located on fr.islandswars.ineundo.container
- * PaperContainer is a part of ineundo.
+ * File <b>Status</b> located on fr.islandswars.ineundo.container
+ * Status is a part of ineundo.
  * <p>
  * Copyright (c) 2017 - 2021 Islands Wars.
  * <p>
@@ -23,29 +21,13 @@ import fr.islandswars.commons.service.docker.DockerContainer;
  * <p>
  *
  * @author Valentin Burgaud (Xharos), {@literal <xharos@islandswars.fr>}
- * Created the 03/03/2021 at 17:30
+ * Created the 14/03/2021 at 16:02
  * @since 0.1
  */
-public class PaperContainer extends Container {
+public enum Status {
 
-	public PaperContainer(DockerContainer container, ServerType type, int id) {
-		super(container, type, id);
-	}
+	STARTING,
+	RUNNING,
+	STOPPING
 
-	public enum Key {
-
-		ONLINE_PLAYERS("connected-players"),
-		PENDING_PLAYERS("pending-players");
-
-		private final String name;
-
-		Key(String name) {
-			this.name = name;
-		}
-
-		@Override
-		public String toString() {
-			return name;
-		}
-	}
 }

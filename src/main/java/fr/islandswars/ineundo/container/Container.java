@@ -2,6 +2,7 @@ package fr.islandswars.ineundo.container;
 
 import fr.islandswars.commons.service.docker.DockerContainer;
 import fr.islandswars.ineundo.Ineundo;
+import java.util.Date;
 
 /**
  * File <b>Container</b> located on fr.islandswars.ineundo.container
@@ -29,26 +30,59 @@ import fr.islandswars.ineundo.Ineundo;
  */
 public abstract class Container {
 
-	private final DockerContainer container;
-	private final ServerType      type;
-	private final int             id;
+	private final static int             TIMEOUT = 10;
+	protected final      String          name;
+	private final        DockerContainer container;
+	private final        ServerType      type;
+	private final        int             id;
+	private              int             onlinePlayers;
+	private              int             pendingPlayers;
+	private              Status          status;
+	private              Date            started;
 
 	public Container(DockerContainer container, ServerType type, int id) {
 		this.container = container;
+		this.status = Status.STARTING;
+		this.onlinePlayers = 0;
+		this.started = new Date();
+		this.pendingPlayers = 0;
 		this.type = type;
 		this.id = id;
-		container.withName(type.getServerName() + "-" + String.format("%04d", id));
+		this.name = type.getServerName() + "-" + String.format("%04d", id);
+		container.withName(name);
+		start();
 	}
 
 	public int getId() {
 		return id;
 	}
 
+	public int getMaxAllowedPlayer() {
+		return type.getMaxPlayer();
+	}
+
+	public int getOnlinePlayers() {
+		return onlinePlayers;
+	}
+
+	public int getPendingPlayers() {
+		return pendingPlayers;
+	}
+
+	public Status getStatus() {
+		return status;
+	}
+
 	public ServerType getType() {
 		return type;
 	}
 
-	public void start() {
+	public void stop() {
+		this.status = Status.STOPPING;
+		container.stop(Ineundo.getInstance().getContainerManager().getService(), TIMEOUT);
+	}
+
+	private void start() {
 		container.start(Ineundo.getInstance().getContainerManager().getService());
 	}
 }
