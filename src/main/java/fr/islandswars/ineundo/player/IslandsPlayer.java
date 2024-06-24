@@ -2,10 +2,14 @@ package fr.islandswars.ineundo.player;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
+import com.velocitypowered.api.proxy.ProxyServer;
+import fr.islandswars.ineundo.player.sanction.IslandsSanction;
 
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -35,20 +39,23 @@ import java.util.UUID;
 public class IslandsPlayer {
 
     @Expose
-    private UUID         uuid;
+    private UUID                  uuid;
     @Expose
-    private List<String> ranks;
+    private List<String>          ranks;
     @SerializedName("first_connection")
     @Expose
-    private String       firstConnection;
+    private String                firstConnection;
     @SerializedName("last_connection")
     @Expose
-    private String       lastConnection;
+    private String                lastConnection;
+    @Expose
+    private List<IslandsSanction> sanctions;
 
     public IslandsPlayer() {
         this.ranks = List.of(IslandsRank.PLAYER.toString());
         this.firstConnection = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
         this.lastConnection = firstConnection;
+        this.sanctions = new ArrayList<>();
     }
 
     public IslandsRank getMainRank() {
@@ -75,8 +82,24 @@ public class IslandsPlayer {
         return firstConnection;
     }
 
+    public void addSanction(IslandsSanction sanction) {
+        sanctions.add(sanction);
+        //TODO kick player with message
+    }
+
+    public Optional<IslandsSanction> isKick() {
+        for (IslandsSanction sanction : sanctions) {
+            var endDate = Instant.parse(sanction.getEnd());
+            var now     = Instant.now();
+            if (endDate.isAfter(now))
+                return Optional.of(sanction);
+        }
+        return Optional.empty();
+    }
+
     @Override
     public String toString() {
+        //TODO recode
         return "IslandsPlayer:" + uuid + ":" + ranks;
     }
 }

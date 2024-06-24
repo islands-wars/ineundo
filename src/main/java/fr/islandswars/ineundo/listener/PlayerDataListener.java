@@ -20,6 +20,8 @@ import fr.islandswars.commons.service.mongodb.ObservableSubscriber;
 import fr.islandswars.commons.service.mongodb.OperationSubscriber;
 import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.player.IslandsPlayer;
+import fr.islandswars.ineundo.player.sanction.IslandsSanction;
+import fr.islandswars.ineundo.player.sanction.SanctionReason;
 import net.kyori.adventure.text.Component;
 import org.bson.Document;
 
@@ -84,10 +86,11 @@ public class PlayerDataListener extends LazyListener {
                         ex.printStackTrace();
                         event.getPlayer().disconnect(Component.text("Database issue"));
                     } else {
-                        var player = optPlayer.get();
+                        var player   = optPlayer.get();
+                        var sanction = player.isKick();
+                        sanction.ifPresent(s -> event.getPlayer().disconnect(Component.text(s.getReason().getKickKey())));
                         //TODO server for staff only
                         //TODO server offline
-                        //TODO player banned
                         //TODO set on redis
                     }
                 });
@@ -100,6 +103,7 @@ public class PlayerDataListener extends LazyListener {
     public void onPlayerDisconnect(DisconnectEvent event) {
         var uuid      = event.getPlayer().getUniqueId();
         var optPlayer = getPlayer(uuid);
+        optPlayer.get().addSanction(new IslandsSanction(SanctionReason.CHEAT, UUID.randomUUID()));
         //TODO fetch from redis
         log("quit event call ");
         optPlayer.ifPresent(this::savePlayerData);

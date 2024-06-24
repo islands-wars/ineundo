@@ -28,6 +28,21 @@ services:
       mongo:
         condition: service_healthy
 
+  mc:
+    image: itzg/minecraft-server:java21-jdk
+    environment:
+      EULA: "true"
+      TYPE: "PAPER"
+      ONLINE_MODE: "FALSE"
+      PAPER_DOWNLOAD_URL: "https://api.papermc.io/v2/projects/paper/versions/1.21/builds/37/downloads/paper-1.21-37.jar"
+    volumes:
+      - ./data:/data
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - islands_network
+
   mongo:
     build: mongodb/.
     ports:
