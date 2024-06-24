@@ -31,7 +31,7 @@ dependencies {
     implementation("com.rabbitmq:amqp-client:5.21.0")
     compileOnly("com.velocitypowered:velocity-api:3.3.0-SNAPSHOT")
     annotationProcessor("com.velocitypowered:velocity-api:3.3.0-SNAPSHOT")
-    implementation("fr.islandswars:commons:0.3")
+    implementation("fr.islandswars:commons:0.3.1")
 }
 
 tasks.withType<Jar> {

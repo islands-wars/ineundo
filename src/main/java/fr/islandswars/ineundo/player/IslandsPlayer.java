@@ -1,5 +1,13 @@
 package fr.islandswars.ineundo.player;
 
+import com.google.gson.annotations.Expose;
+import com.google.gson.annotations.SerializedName;
+
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.UUID;
+
 /**
  * File <b>IslandsPlayer</b> located on fr.islandswars.ineundo.player
  * IslandsPlayer is a part of ineundo.
@@ -25,4 +33,51 @@ package fr.islandswars.ineundo.player;
  * @since 0.1
  */
 public class IslandsPlayer {
+
+    @Expose
+    private UUID         uuid;
+    @Expose
+    private List<String> ranks;
+    @SerializedName("first_connection")
+    @Expose
+    private String       firstConnection;
+    @SerializedName("last_connection")
+    @Expose
+    private String       lastConnection;
+
+    public IslandsPlayer() {
+        this.ranks = List.of(IslandsRank.PLAYER.toString());
+        this.firstConnection = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
+        this.lastConnection = firstConnection;
+    }
+
+    public IslandsRank getMainRank() {
+        return IslandsRank.getHighest(ranks);
+    }
+
+    public UUID getUUID() {
+        return uuid;
+    }
+
+    public void setUUID(UUID uuid) {
+        this.uuid = uuid;
+    }
+
+    public void setRanks(List<String> ranks) {
+        this.ranks = ranks;
+    }
+
+    public void setLastConnection() {
+        this.lastConnection = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
+    }
+
+    public String getFirstConnection() {
+        return firstConnection;
+    }
+
+    @Override
+    public String toString() {
+        return "IslandsPlayer:" + uuid + ":" + ranks;
+    }
 }
+

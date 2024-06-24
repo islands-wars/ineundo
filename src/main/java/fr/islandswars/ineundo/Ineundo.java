@@ -1,14 +1,24 @@
 package fr.islandswars.ineundo;
 
 import com.google.inject.Inject;
+import com.mongodb.MongoClientSettings;
+import com.mongodb.reactivestreams.client.MongoClients;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import fr.islandswars.commons.service.mongodb.MongoDBConnection;
+import fr.islandswars.commons.utils.LogUtils;
+import fr.islandswars.ineundo.listener.PlayerDataListener;
+import fr.islandswars.ineundo.player.IslandsPlayer;
+import net.kyori.adventure.text.Component;
+import org.bson.UuidRepresentation;
 
 import java.nio.file.Path;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Logger;
 
 /**
@@ -43,26 +53,60 @@ import java.util.logging.Logger;
 )
 public class Ineundo {
 
-    private Logger      logger;
-    private ProxyServer server;
+    private final CopyOnWriteArrayList<IslandsPlayer> players;
+    private final MongoDBConnection                   mongoConnection;
+    private final Logger                              logger;
+    private final ProxyServer                         server;
 
     @Inject
     public Ineundo(Logger logger, ProxyServer server, @DataDirectory Path dataDirectory) {
+        this.mongoConnection = new MongoDBConnection();
+        this.players = new CopyOnWriteArrayList<>();
         this.logger = logger;
         this.server = server;
+        LogUtils.setErrorConsummer(e -> {
+            e.printStackTrace();//TODO change
+        });
     }
 
     @Subscribe
     public void onInitialization(ProxyInitializeEvent event) {
-        logger.info("hello world");
-        MongoDBConnection conn = new MongoDBConnection();
-
         try {
-            conn.load();
-            conn.connect();
-            logger.info(conn.getConnection().getName());
+            mongoConnection.load();
+            mongoConnection.connect();
+            logger.info(mongoConnection.getConnection().getName());
         } catch (Exception e) {
+            server.shutdown(Component.text("Database issue"));
             e.printStackTrace();
         }
+
+        new PlayerDataListener(this, mongoConnection);
+    }
+
+    public ProxyServer getServer() {
+        return server;
+    }
+
+    public Logger getLogger() {
+        return logger;
+    }
+
+    public void addPlayer(IslandsPlayer player) {
+        if (getPlayer(player.getUUID()).isPresent())
+            logger.severe("Player " + player.getUUID() + " is already registered....");
+        else
+            players.add(player);
+    }
+
+    public Optional<IslandsPlayer> getPlayer(UUID uuid) {
+        return players.stream().filter(p -> p.getUUID().equals(uuid)).findFirst();
+    }
+
+    public CopyOnWriteArrayList<IslandsPlayer> getPlayers() {
+        return players;
+    }
+
+    public void removePlayer(IslandsPlayer player) {
+        players.remove(player);
     }
 }
