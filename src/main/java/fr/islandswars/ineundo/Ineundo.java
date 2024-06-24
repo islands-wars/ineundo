@@ -4,7 +4,11 @@ import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Plugin;
+import com.velocitypowered.api.plugin.annotation.DataDirectory;
+import com.velocitypowered.api.proxy.ProxyServer;
+import fr.islandswars.commons.service.mongodb.MongoDBConnection;
 
+import java.nio.file.Path;
 import java.util.logging.Logger;
 
 /**
@@ -34,15 +38,31 @@ import java.util.logging.Logger;
 @Plugin(
         id = "ineundo",
         name = "Ineundo",
-        version = "0.1"
+        version = "0.1",
+        authors = "Xharos"
 )
 public class Ineundo {
 
+    private Logger      logger;
+    private ProxyServer server;
+
     @Inject
-    private Logger logger;
+    public Ineundo(Logger logger, ProxyServer server, @DataDirectory Path dataDirectory) {
+        this.logger = logger;
+        this.server = server;
+    }
 
     @Subscribe
     public void onInitialization(ProxyInitializeEvent event) {
-        logger.info("hello");
+        logger.info("hello world");
+        MongoDBConnection conn = new MongoDBConnection();
+
+        try {
+            conn.load();
+            conn.connect();
+            logger.info(conn.getConnection().getName());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

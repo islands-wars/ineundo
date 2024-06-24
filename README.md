@@ -37,6 +37,8 @@ Use gradle task to locally run the proxy and the plugin:
 $> gradle runVelocity
 ```
 
+Or you can use the `compose.yaml` file to run the proxy inside Docker.
+
 
 # License
 ---

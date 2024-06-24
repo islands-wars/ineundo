@@ -1,0 +1,91 @@
+services:
+  proxy:
+    image: itzg/mc-proxy
+    container_name: velocity
+    environment:
+      TYPE: "VELOCITY"
+    ports:
+      - '25565:25577'
+    volumes:
+      - ./run:/server
+      - ./build/libs:/server/plugins/
+    networks:
+      - islands_network
+    secrets:
+      - rmq_password
+      - rmq_username
+      - rmq_host
+      - rmq_port
+      - redis_password
+      - redis_host
+      - redis_port
+      - redis_username
+      - mongodb_password
+      - mongodb_username
+      - mongodb_host
+      - mongodb_port
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  mongo:
+    build: mongodb/.
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongodb_root_password
+      MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/mongodb_root_username
+      MONGO_INITDB_DATABASE: admin
+      MONGO_USERNAME_FILE: /run/secrets/mongodb_username
+      MONGO_PASSWORD_FILE: /run/secrets/mongodb_password
+      MONGO_DATABASE: iswars
+    secrets:
+      - mongodb_root_password
+      - mongodb_root_username
+      - mongodb_password
+      - mongodb_username
+    networks:
+      - islands_network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/iswars --quiet
+      interval: 2s
+      timeout: 12s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - ./mongodb/docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+    command: [ --auth ]
+
+networks:
+  islands_network:
+    driver: bridge
+
+secrets:
+  rmq_password:
+    file: secrets/rmq_password
+  rmq_username:
+    file: secrets/rmq_username
+  rmq_host:
+    file: secrets/rmq_host
+  rmq_port:
+    file: secrets/rmq_port
+  redis_password:
+    file: secrets/redis_password
+  redis_host:
+    file: secrets/redis_host
+  redis_port:
+    file: secrets/redis_port
+  redis_username:
+    file: secrets/redis_username
+  mongodb_root_password:
+    file: secrets/mongodb_root_password
+  mongodb_root_username:
+    file: secrets/mongodb_root_username
+  mongodb_password:
+    file: secrets/mongodb_password
+  mongodb_username:
+    file: secrets/mongodb_username
+  mongodb_host:
+    file: secrets/mongodb_host
+  mongodb_port:
+    file: secrets/mongodb_port
