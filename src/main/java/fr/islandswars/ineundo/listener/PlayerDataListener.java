@@ -1,36 +1,34 @@
 package fr.islandswars.ineundo.listener;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.result.UpdateResult;
 import com.velocitypowered.api.event.EventTask;
 import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
-import com.velocitypowered.api.event.connection.PostLoginEvent;
 import com.velocitypowered.api.event.connection.PreLoginEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import fr.islandswars.commons.service.collection.Collection;
-import fr.islandswars.commons.service.mongodb.FutureSubscriber;
 import fr.islandswars.commons.service.mongodb.MongoDBConnection;
-import fr.islandswars.commons.service.mongodb.ObservableSubscriber;
 import fr.islandswars.commons.service.mongodb.OperationSubscriber;
+import fr.islandswars.commons.service.redis.RedisConnection;
+import fr.islandswars.commons.utils.ReflectionUtil;
 import fr.islandswars.ineundo.Ineundo;
+import fr.islandswars.ineundo.lang.IneundoError;
 import fr.islandswars.ineundo.player.IslandsPlayer;
-import fr.islandswars.ineundo.player.sanction.IslandsSanction;
-import fr.islandswars.ineundo.player.sanction.SanctionReason;
+import fr.islandswars.ineundo.utils.MongoConstants;
+import fr.islandswars.ineundo.utils.RedisConstants;
 import net.kyori.adventure.text.Component;
 import org.bson.Document;
 
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
@@ -57,6 +55,7 @@ import java.util.concurrent.TimeUnit;
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
  * Created the 24/06/2024 at 16:10
  * @since 0.1
+ * TODO proper logging
  */
 public class PlayerDataListener extends LazyListener {
 
@@ -64,11 +63,13 @@ public class PlayerDataListener extends LazyListener {
     private final TimeUnit                                mongoTimeoutUnit = TimeUnit.SECONDS;
     private final List<OperationSubscriber<UpdateResult>> pendingResults;
     private final Collection<IslandsPlayer>               playersCollection;
+    private final RedisConnection                         redis;
 
-    public PlayerDataListener(Ineundo ineundo, MongoDBConnection connection) {
+    public PlayerDataListener(Ineundo ineundo, MongoDBConnection mongo, RedisConnection redis) {
         super(ineundo);
+        this.redis = redis;
         this.pendingResults = new CopyOnWriteArrayList<>();
-        this.playersCollection = connection.getCollection("players", IslandsPlayer.class);
+        this.playersCollection = mongo.getCollection(MongoConstants.PLAYER_COLLECTION, IslandsPlayer.class);
     }
 
     @Subscribe
@@ -80,32 +81,15 @@ public class PlayerDataListener extends LazyListener {
     @Subscribe(order = PostOrder.FIRST)
     public EventTask onServerPreconnectEvent(ServerPreConnectEvent event) {
         if (event.getPreviousServer() == null) {
-            return EventTask.async(() -> {
-                getPlayerAsync(event.getPlayer().getUniqueId()).whenCompleteAsync((optPlayer, ex) -> {
-                    if (ex != null || optPlayer.isEmpty()) {
-                        ex.printStackTrace();
-                        event.getPlayer().disconnect(Component.text("Database issue"));
-                    } else {
-                        var player   = optPlayer.get();
-                        var sanction = player.isKick();
-                        sanction.ifPresent(s -> event.getPlayer().disconnect(Component.text(s.getReason().getKickKey())));
-                        //TODO server for staff only
-                        //TODO server offline
-                        //TODO set on redis
-                    }
-                });
-            });
-        }
-        return null;
+            return EventTask.async(() -> synchroniseData(event));
+        } else
+            return null;
     }
 
     @Subscribe
     public void onPlayerDisconnect(DisconnectEvent event) {
         var uuid      = event.getPlayer().getUniqueId();
         var optPlayer = getPlayer(uuid);
-        optPlayer.get().addSanction(new IslandsSanction(SanctionReason.CHEAT, UUID.randomUUID()));
-        //TODO fetch from redis
-        log("quit event call ");
         optPlayer.ifPresent(this::savePlayerData);
     }
 
@@ -116,36 +100,80 @@ public class PlayerDataListener extends LazyListener {
     }
 
     private void savePlayerData(IslandsPlayer player) {
-        var subscriber = playersCollection.replace(player, Filters.eq("uuid", player.getUUID().toString()));
-        pendingResults.add(subscriber);
+        updateFromRedis(player).whenCompleteAsync((p, thr) -> {
+            if (thr != null)
+                error(new IneundoError("Error when saving player data in MongoDB...", thr));
 
-        CompletableFuture<UpdateResult> result = new CompletableFuture<>();
-        result.completeAsync(subscriber::first);
-        result.whenCompleteAsync((re, th) -> {
+            var subscriber = playersCollection.replace(player, MongoConstants.PLAYER_ID_FILTER(player.getUUID()));
+            pendingResults.add(subscriber);
+
+            CompletableFuture<UpdateResult> result = new CompletableFuture<>();
+            result.completeAsync(subscriber::first);
+            result.whenCompleteAsync((re, th) -> {
+                if (th != null)
+                    error(new IneundoError("Error when saving player data in MongoDB...", th));
+                getIneundo().removePlayer(player);
+                pendingResults.remove(subscriber);
+            });
+            //TODO maybe add a timeout here in case the player wants to connect back to the server
+            //TODO or check if a player with this uuid is already existing when joining
+        });
+    }
+
+    private void synchroniseData(ServerPreConnectEvent event) {
+        getPlayerAsync(event.getPlayer().getUniqueId()).whenCompleteAsync((optPlayer, th) -> {
+            if (th != null || optPlayer.isEmpty()) {
+                error(new IneundoError("Player " + event.getPlayer().getUsername() + " cannot be retrieved in time", th));
+                event.getPlayer().disconnect(Component.translatable("event.join.data.error"));
+            } else {
+                var player   = optPlayer.get();
+                var sanction = player.isKick();
+                sanction.ifPresent(s -> event.getPlayer().disconnect(s.getKickMessage()));
+                if (getIneundo().getSTAFF_ONLY().get() && !player.getMainRank().isStaff()) event.getPlayer().disconnect(Component.translatable("event.join.staff"));
+                else {
+                    //TODO server offline
+                    redis.getConnection().set(RedisConstants.PLAYER_KEY(player.getUUID()), playersCollection.serialize(player).toJson());
+                }
+            }
+        });
+    }
+
+    private CompletionStage<IslandsPlayer> updateFromRedis(IslandsPlayer current) {
+        return redis.getConnection().get(current.getUUID().toString() + ":player").handleAsync((json, th) -> {
             if (th != null)
-                th.printStackTrace();
-            getIneundo().removePlayer(player);
-            pendingResults.remove(subscriber);
+                error(new IneundoError("Cannot retrieve player data on redis...", th));
+
+            if (json != null) {
+                var     retrieved = playersCollection.deserialize(Document.parse(json));
+                Field[] fields    = retrieved.getClass().getDeclaredFields();
+                for (Field field : fields) {
+                    try {
+                        field.setAccessible(true);
+                        var newValue = field.get(retrieved);
+                        if (newValue != null && !field.get(current).equals(newValue)) ReflectionUtil.setField(current, field.getName(), newValue);
+                    } catch (IllegalAccessException e) {
+                        error(e);
+                    }
+                }
+            }
+            return current;
         });
     }
 
     private void fetchPlayerData(UUID uuid) {
-        var publisher = playersCollection.findOne(Filters.eq("uuid", uuid.toString()));
+        var publisher = playersCollection.findOne(MongoConstants.PLAYER_ID_FILTER(uuid));
         publisher.thenApplyAsync(player -> {
-                    if (player == null) {
-                        player = new IslandsPlayer();
-                        player.setUUID(uuid);
-                    } else {
-                        player.setLastConnection();
-                    }
-                    return player;
-                })
-                .thenAcceptAsync(player -> getIneundo().addPlayer(player))
-                .orTimeout(mongoTimeout, mongoTimeoutUnit)
-                .exceptionallyAsync(throwable -> {
-                    throwable.printStackTrace();
-                    return null;
-                });
+            if (player == null) {
+                player = new IslandsPlayer();
+                player.firstConection(uuid);
+            } else {
+                player.welcomeBack();
+            }
+            return player;
+        }).thenAcceptAsync(player -> getIneundo().addPlayer(player)).orTimeout(mongoTimeout, mongoTimeoutUnit).exceptionallyAsync(th -> {
+            error(new IneundoError("MongoDB timeout when retrieving player data", th));
+            return null;
+        });
     }
 
     private CompletableFuture<Optional<IslandsPlayer>> getPlayerAsync(UUID uuid) {
@@ -153,8 +181,7 @@ public class PlayerDataListener extends LazyListener {
 
         var scheduledTask = getServer().getScheduler().buildTask(getIneundo(), () -> {
             var player = getPlayer(uuid);
-            if (player.isPresent())
-                future.complete(player);
+            if (player.isPresent()) future.complete(player);
         }).repeat(Duration.of(100, ChronoUnit.MILLIS)).schedule();
 
         future.orTimeout(mongoTimeout, mongoTimeoutUnit).whenComplete((optPlayer, ex) -> {

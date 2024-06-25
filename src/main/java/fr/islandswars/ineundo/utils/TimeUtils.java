@@ -1,8 +1,11 @@
-package fr.islandswars.ineundo.player.sanction;
+package fr.islandswars.ineundo.utils;
+
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 
 /**
- * File <b>SanctionReason</b> located on fr.islandswars.ineundo.player.sanction
- * SanctionReason is a part of ineundo.
+ * File <b>TimeUtils</b> located on fr.islandswars.ineundo.utils
+ * TimeUtils is a part of ineundo.
  * <p>
  * Copyright (c) 2017 - 2024 Islands Wars.
  * <p>
@@ -21,27 +24,16 @@ package fr.islandswars.ineundo.player.sanction;
  * <p>
  *
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
- * Created the 24/06/2024 at 22:37
+ * Created the 25/06/2024 at 22:17
  * @since 0.1
  */
-public enum SanctionReason {
+public class TimeUtils {
 
-    CHEAT("sanction.cheat", 7),
-    BEHAVIOR("sanction.behavior", 365);
-
-    private final String kickKey;
-    private final int    days;
-
-    SanctionReason(String kickKey, int days) {
-        this.kickKey = kickKey;
-        this.days = days;
+    public static String NOW() {
+        return DateTimeFormatter.ISO_INSTANT.format(Instant.now());
     }
 
-    public int getDays() {
-        return days;
-    }
-
-    public String getKickKey() {
-        return kickKey;
+    public static Instant FROM_ISO_STRING(String date) {
+        return Instant.parse(date);
     }
 }

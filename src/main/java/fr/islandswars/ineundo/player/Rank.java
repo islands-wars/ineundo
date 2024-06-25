@@ -1,10 +1,13 @@
 package fr.islandswars.ineundo.player;
 
-import java.util.List;
+import com.google.gson.annotations.Expose;
+import fr.islandswars.ineundo.utils.TimeUtils;
+
+import java.time.Instant;
 
 /**
- * File <b>IslandsRank</b> located on fr.islandswars.ineundo.player
- * IslandsRank is a part of ineundo.
+ * File <b>Ranks</b> located on fr.islandswars.ineundo.player
+ * Ranks is a part of ineundo.
  * <p>
  * Copyright (c) 2017 - 2024 Islands Wars.
  * <p>
@@ -23,38 +26,33 @@ import java.util.List;
  * <p>
  *
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
- * Created the 24/06/2024 at 16:07
+ * Created the 25/06/2024 at 22:19
  * @since 0.1
  */
-public enum IslandsRank {
+public class Rank {
 
-    ADMIN(1),
-    STAFF(2),
-    PLAYER(5);
+    @Expose
+    private String rank;
+    @Expose
+    private String author;
+    @Expose
+    private String date;
 
-    private final int rankLevel;
-
-    IslandsRank(int rankLevel) {
-        this.rankLevel = rankLevel;
+    public Rank(IslandsRank rank, String givenBy, String date) {
+        this.rank = rank.name();
+        this.author = givenBy;
+        this.date = date;
     }
 
-    public static IslandsRank getHighest(List<Rank> ranks) {
-        var highestRank = PLAYER;
-
-        for (var rank : ranks) {
-            var currentRank = rank.getRank();
-            if (currentRank.getRankLevel() < highestRank.getRankLevel()) {
-                highestRank = currentRank;
-            }
-        }
-        return highestRank;
+    public Instant getDate() {
+        return TimeUtils.FROM_ISO_STRING(date);
     }
 
-    public boolean isStaff() {
-        return getRankLevel() <= IslandsRank.STAFF.getRankLevel();
+    public String getAuthor() {
+        return author;
     }
 
-    public int getRankLevel() {
-        return rankLevel;
+    public IslandsRank getRank() {
+        return IslandsRank.valueOf(rank);
     }
 }

@@ -1,25 +1,27 @@
 package fr.islandswars.ineundo;
 
 import com.google.inject.Inject;
-import com.mongodb.MongoClientSettings;
-import com.mongodb.reactivestreams.client.MongoClients;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
+import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import fr.islandswars.commons.service.mongodb.MongoDBConnection;
+import fr.islandswars.commons.service.redis.RedisConnection;
 import fr.islandswars.commons.utils.LogUtils;
 import fr.islandswars.ineundo.listener.PlayerDataListener;
+import fr.islandswars.ineundo.locale.TranslationLoader;
+import fr.islandswars.ineundo.log.InternalLogger;
 import fr.islandswars.ineundo.player.IslandsPlayer;
 import net.kyori.adventure.text.Component;
-import org.bson.UuidRepresentation;
+import org.apache.logging.log4j.Level;
 
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.logging.Logger;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * File <b>Ineundo</b> located on fr.islandswars.ineundo
@@ -53,47 +55,74 @@ import java.util.logging.Logger;
 )
 public class Ineundo {
 
-    private final CopyOnWriteArrayList<IslandsPlayer> players;
-    private final MongoDBConnection                   mongoConnection;
-    private final Logger                              logger;
-    private final ProxyServer                         server;
+    private static Ineundo                             INSTANCE;
+    private final  CopyOnWriteArrayList<IslandsPlayer> players;
+    private final  MongoDBConnection                   mongoConnection;
+    private final  RedisConnection                     redisConnection;
+    private final  ProxyServer                         server;
+    private final  InternalLogger                      infraLogger;
+    private final  AtomicBoolean                       STAFF_ONLY;
 
     @Inject
-    public Ineundo(Logger logger, ProxyServer server, @DataDirectory Path dataDirectory) {
+    public Ineundo(ProxyServer server, @DataDirectory Path dataDirectory) {
+        if (INSTANCE == null)
+            INSTANCE = this;
         this.mongoConnection = new MongoDBConnection();
+        this.redisConnection = new RedisConnection();
+        this.infraLogger = new InternalLogger();
         this.players = new CopyOnWriteArrayList<>();
-        this.logger = logger;
+        this.STAFF_ONLY = new AtomicBoolean(false);
         this.server = server;
-        LogUtils.setErrorConsummer(e -> {
-            e.printStackTrace();//TODO change
-        });
+        LogUtils.setErrorConsummer(infraLogger::logError);
+    }
+
+    public static Ineundo getInstance() {
+        return INSTANCE;
     }
 
     @Subscribe
     public void onInitialization(ProxyInitializeEvent event) {
+        new TranslationLoader().load("locale.ineundo");
+        //databases
         try {
             mongoConnection.load();
             mongoConnection.connect();
-            logger.info(mongoConnection.getConnection().getName());
+            redisConnection.load();
+            redisConnection.connect();
         } catch (Exception e) {
-            server.shutdown(Component.text("Database issue"));
-            e.printStackTrace();
+            infraLogger.logError(e);
+            server.shutdown(Component.translatable("proxy.startup.database.error"));
         }
 
-        new PlayerDataListener(this, mongoConnection);
+        //listeners
+        new PlayerDataListener(this, mongoConnection, redisConnection);
+    }
+
+    @Subscribe
+    public void onQuit(ProxyShutdownEvent event) {
+        try {
+            mongoConnection.close();
+            redisConnection.close();
+        } catch (Exception e) {
+            infraLogger.logError(e);
+        }
     }
 
     public ProxyServer getServer() {
         return server;
     }
 
-    public Logger getLogger() {
-        return logger;
+    public InternalLogger getInfraLogger() {
+        return infraLogger;
+    }
+
+    public AtomicBoolean getSTAFF_ONLY() {
+        return STAFF_ONLY;
     }
 
     public void addPlayer(IslandsPlayer player) {
         if (getPlayer(player.getUUID()).isPresent())
-            logger.severe("Player " + player.getUUID() + " is already registered....");
+            infraLogger.log(Level.WARN, "Player " + player.getUUID() + " is already registered....");
         else
             players.add(player);
     }

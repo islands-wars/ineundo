@@ -1,8 +1,8 @@
-package fr.islandswars.ineundo.player.sanction;
+package fr.islandswars.ineundo.lang;
 
 /**
- * File <b>SanctionReason</b> located on fr.islandswars.ineundo.player.sanction
- * SanctionReason is a part of ineundo.
+ * File <b>IneundoError</b> located on fr.islandswars.ineundo.lang
+ * IneundoError is a part of ineundo.
  * <p>
  * Copyright (c) 2017 - 2024 Islands Wars.
  * <p>
@@ -21,27 +21,16 @@ package fr.islandswars.ineundo.player.sanction;
  * <p>
  *
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
- * Created the 24/06/2024 at 22:37
+ * Created the 25/06/2024 at 21:15
  * @since 0.1
  */
-public enum SanctionReason {
+public class IneundoError extends RuntimeException {
 
-    CHEAT("sanction.cheat", 7),
-    BEHAVIOR("sanction.behavior", 365);
-
-    private final String kickKey;
-    private final int    days;
-
-    SanctionReason(String kickKey, int days) {
-        this.kickKey = kickKey;
-        this.days = days;
+    public IneundoError(String message) {
+        super(message);
     }
 
-    public int getDays() {
-        return days;
-    }
-
-    public String getKickKey() {
-        return kickKey;
+    public IneundoError(String message, Throwable cause) {
+        super(message, cause);
     }
 }

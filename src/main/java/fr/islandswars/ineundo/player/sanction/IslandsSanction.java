@@ -1,13 +1,11 @@
 package fr.islandswars.ineundo.player.sanction;
 
 import com.google.gson.annotations.Expose;
+import net.kyori.adventure.text.Component;
 
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.Temporal;
-import java.time.temporal.TemporalUnit;
-import java.util.Date;
 import java.util.UUID;
 
 /**
@@ -44,14 +42,16 @@ public class IslandsSanction {
     private String         end;
     @Expose
     private UUID           author;
+    @Expose
+    private String         authorName;
 
-    public IslandsSanction(SanctionReason reason, UUID author) {
+    public IslandsSanction(SanctionReason reason, UUID author, String authorName) {
         this.reason = reason;
         this.author = author;
+        this.authorName = authorName;
         var now = Instant.now();
         this.start = DateTimeFormatter.ISO_INSTANT.format(now);
         this.end = DateTimeFormatter.ISO_INSTANT.format(now.plus(reason.getDays(), ChronoUnit.DAYS));
-
     }
 
     public String getEnd() {
@@ -62,11 +62,15 @@ public class IslandsSanction {
         return reason;
     }
 
-    public String getStart() {
-        return start;
-    }
-
     public UUID getAuthor() {
         return author;
+    }
+
+    public String getAuthorName() {
+        return authorName;
+    }
+
+    public Component getKickMessage() {
+        return Component.translatable(reason.getKickKey(), Component.text(authorName), Component.text(end));
     }
 }

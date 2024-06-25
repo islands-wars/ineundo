@@ -1,0 +1,27 @@
+<Configuration status="warn" shutdownHook="disable">
+    <Appenders>
+        <TerminalConsole name="TerminalConsole">
+            <PatternLayout pattern="%msg%n%xEx"/>
+        </TerminalConsole>
+    </Appenders>
+    <Loggers>
+        <!-- Disable logging for Velocity -->
+        <Logger name="com.velocitypowered" level="OFF" additivity="false">
+            <AppenderRef ref="TerminalConsole"/>
+        </Logger>
+
+        <!-- Disable logging for MongoDB -->
+        <Logger name="org.mongodb" level="OFF" additivity="false">
+            <AppenderRef ref="TerminalConsole"/>
+        </Logger>
+
+        <Logger name="fr.islandswars" level="info" additivity="false">
+            <AppenderRef ref="TerminalConsole"/>
+        </Logger>
+
+        <!-- Root logger to catch all other logging -->
+        <Root level="info">
+            <AppenderRef ref="TerminalConsole"/>
+        </Root>
+    </Loggers>
+</Configuration>

@@ -1,8 +1,10 @@
-package fr.islandswars.ineundo.player.sanction;
+package fr.islandswars.ineundo.utils;
+
+import java.util.UUID;
 
 /**
- * File <b>SanctionReason</b> located on fr.islandswars.ineundo.player.sanction
- * SanctionReason is a part of ineundo.
+ * File <b>RedisConstants</b> located on fr.islandswars.ineundo.utils
+ * RedisConstants is a part of ineundo.
  * <p>
  * Copyright (c) 2017 - 2024 Islands Wars.
  * <p>
@@ -21,27 +23,14 @@ package fr.islandswars.ineundo.player.sanction;
  * <p>
  *
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
- * Created the 24/06/2024 at 22:37
+ * Created the 25/06/2024 at 23:38
  * @since 0.1
  */
-public enum SanctionReason {
+public class RedisConstants {
 
-    CHEAT("sanction.cheat", 7),
-    BEHAVIOR("sanction.behavior", 365);
+    private static String PLAYER = "player";
 
-    private final String kickKey;
-    private final int    days;
-
-    SanctionReason(String kickKey, int days) {
-        this.kickKey = kickKey;
-        this.days = days;
-    }
-
-    public int getDays() {
-        return days;
-    }
-
-    public String getKickKey() {
-        return kickKey;
+    public static String PLAYER_KEY(UUID uuid) {
+        return uuid.toString() + ":" + uuid.toString();
     }
 }

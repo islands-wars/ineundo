@@ -1,12 +1,17 @@
-package fr.islandswars.ineundo.player.sanction;
+package fr.islandswars.ineundo.log.internal;
+
+import fr.islandswars.commons.utils.Preconditions;
+import fr.islandswars.ineundo.log.Log;
+import org.apache.logging.log4j.Level;
+
 
 /**
- * File <b>SanctionReason</b> located on fr.islandswars.ineundo.player.sanction
- * SanctionReason is a part of ineundo.
+ * File <b>DefaultLog</b> located on fr.islandswars.api.log.internal
+ * DefaultLog is a part of islands.
  * <p>
  * Copyright (c) 2017 - 2024 Islands Wars.
  * <p>
- * ineundo is free software: you can redistribute it and/or modify
+ * islands is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -21,27 +26,18 @@ package fr.islandswars.ineundo.player.sanction;
  * <p>
  *
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
- * Created the 24/06/2024 at 22:37
+ * Created the 26/03/2024 at 19:32
  * @since 0.1
  */
-public enum SanctionReason {
+public class DefaultLog extends Log {
 
-    CHEAT("sanction.cheat", 7),
-    BEHAVIOR("sanction.behavior", 365);
-
-    private final String kickKey;
-    private final int    days;
-
-    SanctionReason(String kickKey, int days) {
-        this.kickKey = kickKey;
-        this.days = days;
+    public DefaultLog(Level level, String msg) {
+        super(level, msg);
     }
 
-    public int getDays() {
-        return days;
-    }
-
-    public String getKickKey() {
-        return kickKey;
+    @Override
+    protected void checkValue() {
+        Preconditions.checkNotNull(level);
+        Preconditions.checkNotNull(msg);
     }
 }

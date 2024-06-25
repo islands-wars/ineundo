@@ -29,9 +29,10 @@ dependencies {
     implementation("org.mongodb:mongodb-driver-reactivestreams:5.0.0")
     implementation("io.lettuce:lettuce-core:6.3.2.RELEASE")
     implementation("com.rabbitmq:amqp-client:5.21.0")
+    implementation("org.apache.logging.log4j:log4j-core:3.0.0-beta2")
+    implementation("fr.islandswars:commons:0.3.1")
     compileOnly("com.velocitypowered:velocity-api:3.3.0-SNAPSHOT")
     annotationProcessor("com.velocitypowered:velocity-api:3.3.0-SNAPSHOT")
-    implementation("fr.islandswars:commons:0.3.1")
 }
 
 tasks.withType<Jar> {

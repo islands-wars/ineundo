@@ -2,11 +2,12 @@ package fr.islandswars.ineundo.player;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
-import com.velocitypowered.api.proxy.ProxyServer;
+import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.player.sanction.IslandsSanction;
+import fr.islandswars.ineundo.utils.ProxyConstants;
+import fr.islandswars.ineundo.utils.TimeUtils;
 
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -41,7 +42,7 @@ public class IslandsPlayer {
     @Expose
     private UUID                  uuid;
     @Expose
-    private List<String>          ranks;
+    private List<Rank>            ranks;
     @SerializedName("first_connection")
     @Expose
     private String                firstConnection;
@@ -52,10 +53,20 @@ public class IslandsPlayer {
     private List<IslandsSanction> sanctions;
 
     public IslandsPlayer() {
-        this.ranks = List.of(IslandsRank.PLAYER.toString());
-        this.firstConnection = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
-        this.lastConnection = firstConnection;
+        this.ranks = new ArrayList<>();
+
         this.sanctions = new ArrayList<>();
+    }
+
+    public void firstConection(UUID uuid) {
+        setUUID(uuid);
+        this.firstConnection = TimeUtils.NOW();
+        this.lastConnection = firstConnection;
+        addRank(new Rank(IslandsRank.PLAYER, ProxyConstants.PROXY, TimeUtils.NOW()));
+    }
+
+    public void welcomeBack() {
+        setLastConnection();
     }
 
     public IslandsRank getMainRank() {
@@ -70,21 +81,21 @@ public class IslandsPlayer {
         this.uuid = uuid;
     }
 
-    public void setRanks(List<String> ranks) {
-        this.ranks = ranks;
-    }
-
     public void setLastConnection() {
-        this.lastConnection = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
-    }
-
-    public String getFirstConnection() {
-        return firstConnection;
+        this.lastConnection = TimeUtils.NOW();
     }
 
     public void addSanction(IslandsSanction sanction) {
         sanctions.add(sanction);
-        //TODO kick player with message
+        Ineundo.getInstance().getServer().getPlayer(getUUID()).ifPresent(p -> {
+            p.disconnect(sanction.getKickMessage());
+        });
+    }
+
+    public void addRank(Rank rank) {
+        if (ranks.stream().noneMatch(r -> r.getRank().equals(rank.getRank())))
+            ranks.add(rank);
+        //TODO notify the player and update it !!
     }
 
     public Optional<IslandsSanction> isKick() {
@@ -95,12 +106,6 @@ public class IslandsPlayer {
                 return Optional.of(sanction);
         }
         return Optional.empty();
-    }
-
-    @Override
-    public String toString() {
-        //TODO recode
-        return "IslandsPlayer:" + uuid + ":" + ranks;
     }
 }
 

@@ -1,8 +1,13 @@
-package fr.islandswars.ineundo.player.sanction;
+package fr.islandswars.ineundo.utils;
+
+import com.mongodb.client.model.Filters;
+import org.bson.conversions.Bson;
+
+import java.util.UUID;
 
 /**
- * File <b>SanctionReason</b> located on fr.islandswars.ineundo.player.sanction
- * SanctionReason is a part of ineundo.
+ * File <b>MongoConstants</b> located on fr.islandswars.ineundo.utils
+ * MongoConstants is a part of ineundo.
  * <p>
  * Copyright (c) 2017 - 2024 Islands Wars.
  * <p>
@@ -21,27 +26,15 @@ package fr.islandswars.ineundo.player.sanction;
  * <p>
  *
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
- * Created the 24/06/2024 at 22:37
+ * Created the 25/06/2024 at 21:51
  * @since 0.1
  */
-public enum SanctionReason {
+public class MongoConstants {
 
-    CHEAT("sanction.cheat", 7),
-    BEHAVIOR("sanction.behavior", 365);
+    public static final String PLAYER_COLLECTION = "players";
+    private static final String PLAYER_ID         = "uuid";
 
-    private final String kickKey;
-    private final int    days;
-
-    SanctionReason(String kickKey, int days) {
-        this.kickKey = kickKey;
-        this.days = days;
-    }
-
-    public int getDays() {
-        return days;
-    }
-
-    public String getKickKey() {
-        return kickKey;
+    public static Bson PLAYER_ID_FILTER(UUID uuid) {
+        return Filters.eq(PLAYER_ID, uuid.toString());
     }
 }

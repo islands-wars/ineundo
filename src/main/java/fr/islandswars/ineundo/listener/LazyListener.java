@@ -51,7 +51,11 @@ public abstract class LazyListener {
     }
 
     public void log(String msg) {
-        ineundo.getLogger().info(msg);
+        ineundo.getInfraLogger().logInfo(msg);
+    }
+
+    public void error(Exception e) {
+        ineundo.getInfraLogger().logError(e);
     }
 
     public Optional<IslandsPlayer> getPlayer(UUID uuid) {
