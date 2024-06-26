@@ -2,16 +2,14 @@ package fr.islandswars.ineundo.player;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
+import com.velocitypowered.api.util.GameProfile;
 import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.player.sanction.IslandsSanction;
 import fr.islandswars.ineundo.utils.ProxyConstants;
 import fr.islandswars.ineundo.utils.TimeUtils;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * File <b>IslandsPlayer</b> located on fr.islandswars.ineundo.player
@@ -51,10 +49,11 @@ public class IslandsPlayer {
     private String                lastConnection;
     @Expose
     private List<IslandsSanction> sanctions;
+    @Expose
+    private GameProfile.Property  profile;
 
     public IslandsPlayer() {
         this.ranks = new ArrayList<>();
-
         this.sanctions = new ArrayList<>();
     }
 
@@ -106,6 +105,14 @@ public class IslandsPlayer {
                 return Optional.of(sanction);
         }
         return Optional.empty();
+    }
+
+    public GameProfile.Property getProfile() {
+        return profile;
+    }
+
+    public void setProfile(GameProfile.Property profile) {
+        this.profile = profile;
     }
 }
 

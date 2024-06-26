@@ -30,6 +30,10 @@ public class IneundoError extends RuntimeException {
         super(message);
     }
 
+    public IneundoError(Throwable cause) {
+        super(cause.getMessage(), cause);
+    }
+
     public IneundoError(String message, Throwable cause) {
         super(message, cause);
     }

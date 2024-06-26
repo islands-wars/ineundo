@@ -8,17 +8,21 @@ import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.PreLoginEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
+import com.velocitypowered.api.proxy.Player;
 import fr.islandswars.commons.service.collection.Collection;
 import fr.islandswars.commons.service.mongodb.MongoDBConnection;
+import fr.islandswars.commons.service.mongodb.ObservableSubscriber;
 import fr.islandswars.commons.service.mongodb.OperationSubscriber;
 import fr.islandswars.commons.service.redis.RedisConnection;
 import fr.islandswars.commons.utils.ReflectionUtil;
 import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.lang.IneundoError;
+import fr.islandswars.ineundo.log.internal.PlayerConnectionLog;
 import fr.islandswars.ineundo.player.IslandsPlayer;
 import fr.islandswars.ineundo.utils.MongoConstants;
 import fr.islandswars.ineundo.utils.RedisConstants;
 import net.kyori.adventure.text.Component;
+import org.apache.logging.log4j.Level;
 import org.bson.Document;
 
 import java.lang.reflect.Field;
@@ -27,10 +31,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * File <b>PlayerDataListener</b> located on fr.islandswars.ineundo.listener
@@ -55,11 +56,10 @@ import java.util.concurrent.TimeUnit;
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
  * Created the 24/06/2024 at 16:10
  * @since 0.1
- * TODO proper logging
  */
 public class PlayerDataListener extends LazyListener {
 
-    private final long                                    mongoTimeout     = 2L;
+    private final long                                    mongoTimeout     = 1L;
     private final TimeUnit                                mongoTimeoutUnit = TimeUnit.SECONDS;
     private final List<OperationSubscriber<UpdateResult>> pendingResults;
     private final Collection<IslandsPlayer>               playersCollection;
@@ -72,10 +72,13 @@ public class PlayerDataListener extends LazyListener {
         this.playersCollection = mongo.getCollection(MongoConstants.PLAYER_COLLECTION, IslandsPlayer.class);
     }
 
-    @Subscribe
+    @Subscribe(order = PostOrder.FIRST)
     public void onLogin(PreLoginEvent event) {
         var uuid = event.getUniqueId();
-        fetchPlayerData(uuid);
+        getIneundo().getPlayer(uuid).ifPresentOrElse(p -> {
+            event.setResult(PreLoginEvent.PreLoginComponentResult.denied(Component.translatable("event.join.data.error")));
+            new PlayerConnectionLog(Level.ERROR, "Player not saved in database").withEvent(event).log();
+        }, () -> fetchPlayerData(uuid, event));
     }
 
     @Subscribe(order = PostOrder.FIRST)
@@ -86,64 +89,75 @@ public class PlayerDataListener extends LazyListener {
             return null;
     }
 
-    @Subscribe
+    @Subscribe(order = PostOrder.LAST)
     public void onPlayerDisconnect(DisconnectEvent event) {
         var uuid      = event.getPlayer().getUniqueId();
         var optPlayer = getPlayer(uuid);
         optPlayer.ifPresent(this::savePlayerData);
     }
 
-    @Subscribe
+    @Subscribe(order = PostOrder.FIRST)
     public void onProxyShutdown(ProxyShutdownEvent event) {
         while (!pendingResults.isEmpty()) {
         }
     }
 
     private void savePlayerData(IslandsPlayer player) {
-        updateFromRedis(player).whenCompleteAsync((p, thr) -> {
-            if (thr != null)
-                error(new IneundoError("Error when saving player data in MongoDB...", thr));
+        updateFromRedis(player).whenCompleteAsync((p, th) -> {
+            if (th != null)
+                error(new IneundoError("Error when retrieving player data from Redis", th));
 
-            var subscriber = playersCollection.replace(player, MongoConstants.PLAYER_ID_FILTER(player.getUUID()));
+            var subscriber = playersCollection.replace(p, MongoConstants.PLAYER_ID_FILTER(p.getUUID()));
             pendingResults.add(subscriber);
 
             CompletableFuture<UpdateResult> result = new CompletableFuture<>();
-            result.completeAsync(subscriber::first);
-            result.whenCompleteAsync((re, th) -> {
-                if (th != null)
-                    error(new IneundoError("Error when saving player data in MongoDB...", th));
+            result.completeAsync(subscriber::first).orTimeout(mongoTimeout, mongoTimeoutUnit);
+            result.whenCompleteAsync((re, thr) -> {
+                if (thr != null) {
+                    error(new IneundoError("Error when saving player data in MongoDB.", thr));
+                    getIneundo().getInfraLogger().log(Level.ERROR, playersCollection.serialize(p).toJson()); //manual save in case of problem
+                }
                 getIneundo().removePlayer(player);
                 pendingResults.remove(subscriber);
             });
-            //TODO maybe add a timeout here in case the player wants to connect back to the server
-            //TODO or check if a player with this uuid is already existing when joining
         });
     }
 
     private void synchroniseData(ServerPreConnectEvent event) {
         getPlayerAsync(event.getPlayer().getUniqueId()).whenCompleteAsync((optPlayer, th) -> {
             if (th != null || optPlayer.isEmpty()) {
-                error(new IneundoError("Player " + event.getPlayer().getUsername() + " cannot be retrieved in time", th));
+                //error(new IneundoError("Player " + event.getPlayer().getUsername() + " cannot be retrieved in time", th));
                 event.getPlayer().disconnect(Component.translatable("event.join.data.error"));
+                new PlayerConnectionLog(Level.ERROR, "Cannot retrieve data from mongodb in time").withEvent(event).log();
             } else {
-                var player   = optPlayer.get();
+                var player = optPlayer.get();
+                injectGameProfile(player, event.getPlayer());
                 var sanction = player.isKick();
-                sanction.ifPresent(s -> event.getPlayer().disconnect(s.getKickMessage()));
-                if (getIneundo().getSTAFF_ONLY().get() && !player.getMainRank().isStaff()) event.getPlayer().disconnect(Component.translatable("event.join.staff"));
-                else {
+                sanction.ifPresent(s -> {
+                    event.getPlayer().disconnect(s.getKickMessage());
+                    new PlayerConnectionLog(Level.INFO, "Kicked player attempt to login").withEvent(event).log();
+                });
+                if (getIneundo().getSTAFF_ONLY().get() && !player.getMainRank().isStaff()) {
+                    event.getPlayer().disconnect(Component.translatable("event.join.staff"));
+                    new PlayerConnectionLog(Level.INFO, "Connection attempt when the server is in maintenance").withEvent(event).log();
+                } else {
                     //TODO server offline
-                    redis.getConnection().set(RedisConstants.PLAYER_KEY(player.getUUID()), playersCollection.serialize(player).toJson());
+                    redis.getConnection().set(RedisConstants.PLAYER_KEY(player.getUUID()), playersCollection.serialize(player).toJson()).whenCompleteAsync((re, thr) -> {
+                        if (thr != null) {
+                            event.getPlayer().disconnect(Component.translatable("event.join.data.error"));
+                            new PlayerConnectionLog(Level.ERROR, "Cannot save data in redis").withEvent(event).log();
+                        } else
+                            new PlayerConnectionLog(Level.INFO, "Successful connection").withEvent(event).log();
+                    });
                 }
             }
         });
     }
 
     private CompletionStage<IslandsPlayer> updateFromRedis(IslandsPlayer current) {
-        return redis.getConnection().get(current.getUUID().toString() + ":player").handleAsync((json, th) -> {
-            if (th != null)
-                error(new IneundoError("Cannot retrieve player data on redis...", th));
-
+        return redis.getConnection().get(RedisConstants.PLAYER_KEY(current.getUUID())).thenApply((json) -> {
             if (json != null) {
+                log(json);
                 var     retrieved = playersCollection.deserialize(Document.parse(json));
                 Field[] fields    = retrieved.getClass().getDeclaredFields();
                 for (Field field : fields) {
@@ -160,18 +174,27 @@ public class PlayerDataListener extends LazyListener {
         });
     }
 
-    private void fetchPlayerData(UUID uuid) {
+    private void fetchPlayerData(UUID uuid, PreLoginEvent event) {
         var publisher = playersCollection.findOne(MongoConstants.PLAYER_ID_FILTER(uuid));
         publisher.thenApplyAsync(player -> {
+            if (!event.getConnection().getProtocolVersion().isSupported()) {
+                new PlayerConnectionLog(Level.WARN, "Minecraft version not supported!").withEvent(event).log();
+                throw new UnsupportedOperationException("Outdated client version");
+            }
+            PlayerConnectionLog log;
             if (player == null) {
                 player = new IslandsPlayer();
                 player.firstConection(uuid);
+                log = new PlayerConnectionLog(Level.INFO, "First login attempt to join the server");
             } else {
                 player.welcomeBack();
+                log = new PlayerConnectionLog(Level.INFO, "Login attempt to join the server");
             }
+            log.withEvent(event).log();
             return player;
         }).thenAcceptAsync(player -> getIneundo().addPlayer(player)).orTimeout(mongoTimeout, mongoTimeoutUnit).exceptionallyAsync(th -> {
-            error(new IneundoError("MongoDB timeout when retrieving player data", th));
+            if (!(th instanceof UnsupportedOperationException))//check if mongo can throw this error
+                error(new IneundoError(th));
             return null;
         });
     }
@@ -191,5 +214,14 @@ public class PlayerDataListener extends LazyListener {
             }
         });
         return future;
+    }
+
+    private void injectGameProfile(IslandsPlayer isPlayer, Player player) {
+        var profileProperty = player.getGameProfile().getProperties().stream().filter(prop -> prop.getName().equals("textures")).findFirst();
+        profileProperty.ifPresent(prop ->{
+            if (isPlayer.getProfile() == null || !isPlayer.getProfile().equals(prop))
+                isPlayer.setProfile(prop);
+        });
+
     }
 }

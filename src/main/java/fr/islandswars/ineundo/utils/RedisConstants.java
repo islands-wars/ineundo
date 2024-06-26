@@ -31,6 +31,6 @@ public class RedisConstants {
     private static String PLAYER = "player";
 
     public static String PLAYER_KEY(UUID uuid) {
-        return uuid.toString() + ":" + uuid.toString();
+        return uuid.toString() + ":" + PLAYER;
     }
 }

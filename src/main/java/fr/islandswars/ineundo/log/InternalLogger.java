@@ -12,6 +12,7 @@ import org.apache.logging.log4j.core.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
 
 import java.net.URISyntaxException;
+import java.security.KeyPair;
 
 /**
  * File <b>InternalLogger</b> located on fr.islandswars.ineundo.log
@@ -44,11 +45,13 @@ public class InternalLogger {
     private final boolean debug;
 
     public InternalLogger() {
-        this.gson = new GsonBuilder().registerTypeAdapter(Level.class, new Log4jLevelSerializer())
-                .registerTypeAdapter(StackTraceElement.class, new StackTraceElementTypeAdapter()).create();
+        this.gson = new GsonBuilder()
+                .registerTypeAdapter(Level.class, new Log4jLevelSerializer())
+                .registerTypeAdapter(StackTraceElement.class, new StackTraceElementTypeAdapter())
+                .create();
         this.debug = Boolean.parseBoolean(System.getenv("DEBUG"));
         this.rootLogger = (Logger) LogManager.getRootLogger();
-        //overrideDefault(); TODO update
+        //overrideDefault(); //TODO update
     }
 
     private void overrideDefault() {
@@ -83,6 +86,7 @@ public class InternalLogger {
     }
 
     protected void sysout(Log object) {
+        System.out.print(object.msg);
         if (object.getLevel() == Level.DEBUG) {
             if (debug)
                 rootLogger.log(object.getLevel(), gson.toJson(object));
