@@ -30,6 +30,8 @@ dependencies {
     implementation("io.lettuce:lettuce-core:6.3.2.RELEASE")
     implementation("com.rabbitmq:amqp-client:5.21.0")
     implementation("org.apache.logging.log4j:log4j-core:3.0.0-beta2")
+    implementation("com.github.docker-java:docker-java-core:3.3.6")
+    implementation("com.github.docker-java:docker-java-transport-httpclient5:3.3.6")
     implementation("fr.islandswars:commons:0.3.1")
     compileOnly("com.velocitypowered:velocity-api:3.3.0-SNAPSHOT")
     annotationProcessor("com.velocitypowered:velocity-api:3.3.0-SNAPSHOT")

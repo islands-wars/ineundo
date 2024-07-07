@@ -1,6 +1,6 @@
 services:
   proxy:
-    image: itzg/mc-proxy
+    build: velocity/.
     container_name: velocity
     environment:
       TYPE: "VELOCITY"
@@ -9,6 +9,7 @@ services:
     volumes:
       - ./run:/server
       - ./build/libs:/server/plugins/
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - islands_network
     secrets:
@@ -31,14 +32,10 @@ services:
         condition: service_healthy
 
   mc:
-    image: itzg/minecraft-server:java21-jdk
+    build: paper/.
+    container_name: mc
     environment:
-      EULA: "true"
-      TYPE: "PAPER"
-      ONLINE_MODE: "FALSE"
-      PAPER_DOWNLOAD_URL: "https://api.papermc.io/v2/projects/paper/versions/1.21/builds/37/downloads/paper-1.21-37.jar"
-    volumes:
-      - ./data:/data
+      VELOCITY_SECRET: "jfei7Ua34jhQ"
     networks:
       - islands_network
     depends_on:
@@ -49,6 +46,7 @@ services:
 
   mongo:
     build: mongodb/.
+    container_name: mongodb
     ports:
       - '27017:27017'
     environment:
@@ -77,6 +75,7 @@ services:
 
   redis:
     build: redis/.
+    container_name: redis
     ports:
       - '6379:6379'
     environment:

@@ -13,6 +13,7 @@ import fr.islandswars.commons.utils.LogUtils;
 import fr.islandswars.ineundo.listener.PlayerDataListener;
 import fr.islandswars.ineundo.locale.TranslationLoader;
 import fr.islandswars.ineundo.log.InternalLogger;
+import fr.islandswars.ineundo.manager.TestContainer;
 import fr.islandswars.ineundo.player.IslandsPlayer;
 import net.kyori.adventure.text.Component;
 import org.apache.logging.log4j.Level;
@@ -96,6 +97,7 @@ public class Ineundo {
 
         //listeners
         new PlayerDataListener(this, mongoConnection, redisConnection);
+        new TestContainer(this);
     }
 
     @Subscribe

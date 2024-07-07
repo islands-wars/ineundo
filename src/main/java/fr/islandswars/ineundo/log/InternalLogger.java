@@ -12,7 +12,6 @@ import org.apache.logging.log4j.core.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
 
 import java.net.URISyntaxException;
-import java.security.KeyPair;
 
 /**
  * File <b>InternalLogger</b> located on fr.islandswars.ineundo.log
