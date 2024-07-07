@@ -1,13 +1,10 @@
-package fr.islandswars.ineundo.player;
+package fr.islandswars.ineundo.utils;
 
-import com.google.gson.annotations.Expose;
-import fr.islandswars.ineundo.utils.TimeUtils;
-
-import java.time.Instant;
+import java.util.UUID;
 
 /**
- * File <b>Ranks</b> located on fr.islandswars.ineundo.player
- * Ranks is a part of ineundo.
+ * File <b>RabbitConstants</b> located on fr.islandswars.ineundo.utils
+ * RabbitConstants is a part of ineundo.
  * <p>
  * Copyright (c) 2017 - 2024 Islands Wars.
  * <p>
@@ -26,33 +23,20 @@ import java.time.Instant;
  * <p>
  *
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
- * Created the 25/06/2024 at 22:19
+ * Created the 07/07/2024 at 21:43
  * @since 0.1
  */
-public class Rank {
+public class RabbitConstants {
 
-    @Expose
-    private String rank;
-    @Expose
-    private String author;
-    @Expose
-    private String date;
+    public static final  String MANAGER  = "server";
+    private static final String ALL      = "all";
+    public static final  String EXCHANGE = "islands";
 
-    public Rank(IslandsRank rank, String givenBy, String date) {
-        this.rank = rank.name();
-        this.author = givenBy;
-        this.date = date;
+    public static String getProxyQueue(UUID proxyId) {
+        return MANAGER + proxyId.toString();
     }
 
-    public Instant getDate() {
-        return TimeUtils.FROM_ISO_STRING(date);
-    }
-
-    public String getAuthor() {
-        return author;
-    }
-
-    public IslandsRank getRank() {
-        return IslandsRank.valueOf(rank);
+    public static String getProxiesQueue() {
+        return MANAGER + "." + ALL;
     }
 }

@@ -28,9 +28,11 @@ import java.util.UUID;
  */
 public class RedisConstants {
 
+    public static String PROXY  = "proxies";
     private static String PLAYER = "player";
 
     public static String PLAYER_KEY(UUID uuid) {
         return uuid.toString() + ":" + PLAYER;
     }
+
 }

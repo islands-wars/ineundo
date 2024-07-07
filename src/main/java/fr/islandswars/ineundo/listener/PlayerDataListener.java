@@ -11,15 +11,15 @@ import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.proxy.Player;
 import fr.islandswars.commons.service.collection.Collection;
 import fr.islandswars.commons.service.mongodb.MongoDBConnection;
-import fr.islandswars.commons.service.mongodb.ObservableSubscriber;
 import fr.islandswars.commons.service.mongodb.OperationSubscriber;
 import fr.islandswars.commons.service.redis.RedisConnection;
 import fr.islandswars.commons.utils.ReflectionUtil;
 import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.lang.IneundoError;
 import fr.islandswars.ineundo.log.internal.PlayerConnectionLog;
-import fr.islandswars.ineundo.player.IslandsPlayer;
+import fr.islandswars.ineundo.player.ProxyPlayer;
 import fr.islandswars.ineundo.utils.MongoConstants;
+import fr.islandswars.ineundo.utils.ProxyConstants;
 import fr.islandswars.ineundo.utils.RedisConstants;
 import net.kyori.adventure.text.Component;
 import org.apache.logging.log4j.Level;
@@ -62,14 +62,14 @@ public class PlayerDataListener extends LazyListener {
     private final long                                    mongoTimeout     = 1L;
     private final TimeUnit                                mongoTimeoutUnit = TimeUnit.SECONDS;
     private final List<OperationSubscriber<UpdateResult>> pendingResults;
-    private final Collection<IslandsPlayer>               playersCollection;
+    private final Collection<ProxyPlayer>                 playersCollection;
     private final RedisConnection                         redis;
 
     public PlayerDataListener(Ineundo ineundo, MongoDBConnection mongo, RedisConnection redis) {
         super(ineundo);
         this.redis = redis;
         this.pendingResults = new CopyOnWriteArrayList<>();
-        this.playersCollection = mongo.getCollection(MongoConstants.PLAYER_COLLECTION, IslandsPlayer.class);
+        this.playersCollection = mongo.getCollection(MongoConstants.PLAYER_COLLECTION, ProxyPlayer.class);
     }
 
     @Subscribe(order = PostOrder.FIRST)
@@ -102,7 +102,7 @@ public class PlayerDataListener extends LazyListener {
         }
     }
 
-    private void savePlayerData(IslandsPlayer player) {
+    private void savePlayerData(ProxyPlayer player) {
         updateFromRedis(player).whenCompleteAsync((p, th) -> {
             if (th != null)
                 error(new IneundoError("Error when retrieving player data from Redis", th));
@@ -134,7 +134,7 @@ public class PlayerDataListener extends LazyListener {
                 injectGameProfile(player, event.getPlayer());
                 var sanction = player.isKick();
                 sanction.ifPresent(s -> {
-                    event.getPlayer().disconnect(s.getKickMessage());
+                    event.getPlayer().disconnect(Component.translatable(s.getReason().getKickKey(), Component.text(s.getAuthorName()), Component.text(s.getEnd())));
                     new PlayerConnectionLog(Level.INFO, "Kicked player attempt to login").withEvent(event).log();
                 });
                 if (getIneundo().getSTAFF_ONLY().get() && !player.getMainRank().isStaff()) {
@@ -154,10 +154,9 @@ public class PlayerDataListener extends LazyListener {
         });
     }
 
-    private CompletionStage<IslandsPlayer> updateFromRedis(IslandsPlayer current) {
+    private CompletionStage<ProxyPlayer> updateFromRedis(ProxyPlayer current) {
         return redis.getConnection().get(RedisConstants.PLAYER_KEY(current.getUUID())).thenApply((json) -> {
             if (json != null) {
-                log(json);
                 var     retrieved = playersCollection.deserialize(Document.parse(json));
                 Field[] fields    = retrieved.getClass().getDeclaredFields();
                 for (Field field : fields) {
@@ -183,8 +182,8 @@ public class PlayerDataListener extends LazyListener {
             }
             PlayerConnectionLog log;
             if (player == null) {
-                player = new IslandsPlayer();
-                player.firstConection(uuid);
+                player = new ProxyPlayer();
+                player.firstConnection(uuid, ProxyConstants.PROXY);
                 log = new PlayerConnectionLog(Level.INFO, "First login attempt to join the server");
             } else {
                 player.welcomeBack();
@@ -199,8 +198,8 @@ public class PlayerDataListener extends LazyListener {
         });
     }
 
-    private CompletableFuture<Optional<IslandsPlayer>> getPlayerAsync(UUID uuid) {
-        CompletableFuture<Optional<IslandsPlayer>> future = new CompletableFuture<>();
+    private CompletableFuture<Optional<ProxyPlayer>> getPlayerAsync(UUID uuid) {
+        CompletableFuture<Optional<ProxyPlayer>> future = new CompletableFuture<>();
 
         var scheduledTask = getServer().getScheduler().buildTask(getIneundo(), () -> {
             var player = getPlayer(uuid);
@@ -216,7 +215,7 @@ public class PlayerDataListener extends LazyListener {
         return future;
     }
 
-    private void injectGameProfile(IslandsPlayer isPlayer, Player player) {
+    private void injectGameProfile(ProxyPlayer isPlayer, Player player) {
         var profileProperty = player.getGameProfile().getProperties().stream().filter(prop -> prop.getName().equals("textures")).findFirst();
         profileProperty.ifPresent(prop ->{
             if (isPlayer.getProfile() == null || !isPlayer.getProfile().equals(prop))

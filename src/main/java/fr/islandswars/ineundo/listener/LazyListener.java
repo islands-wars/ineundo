@@ -2,7 +2,7 @@ package fr.islandswars.ineundo.listener;
 
 import com.velocitypowered.api.proxy.ProxyServer;
 import fr.islandswars.ineundo.Ineundo;
-import fr.islandswars.ineundo.player.IslandsPlayer;
+import fr.islandswars.ineundo.player.ProxyPlayer;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -58,7 +58,7 @@ public abstract class LazyListener {
         ineundo.getInfraLogger().logError(e);
     }
 
-    public Optional<IslandsPlayer> getPlayer(UUID uuid) {
+    public Optional<ProxyPlayer> getPlayer(UUID uuid) {
         return getIneundo().getPlayer(uuid);
     }
 
