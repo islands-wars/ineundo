@@ -2,12 +2,11 @@ package fr.islandswars.ineundo.manager.container;
 
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
-import com.github.dockerjava.api.model.ContainerNetwork;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.LogConfig;
-import com.github.dockerjava.api.model.Network;
 import fr.islandswars.commons.service.docker.DockerConnection;
 import fr.islandswars.ineundo.Ineundo;
+import fr.islandswars.ineundo.event.ContainerStartEvent;
 import fr.islandswars.ineundo.lang.IneundoError;
 import fr.islandswars.ineundo.log.InternalLogger;
 import fr.islandswars.ineundo.utils.ProxyConstants;
@@ -53,14 +52,12 @@ public class ContainerManager {
     }
 
     public void start(ContainerType type) {
-        logger.logInfo("Attempt to create a new container " + type.name());
         var container = new Container(type);
         CompletableFuture<CreateContainerResponse> containerFuture = CompletableFuture.supplyAsync(() -> dockerClient.createContainerCmd(container.getImageID())
                 .withName(container.getContainerName())
                 .withEnv(ProxyConstants.PROXY_SECRET_KEY + "=" + velocitySecret)
                 .withHostConfig(hostConfig).exec());
         containerFuture.thenApplyAsync(re -> {
-            logger.logInfo("Started container " + type.name().toLowerCase() + "; ID=" + re.getId());
             dockerClient.connectToNetworkCmd().withContainerId(re.getId()).withNetworkId("islands_dev_network").exec();
             dockerClient.startContainerCmd(re.getId()).exec();
             return re;
@@ -69,7 +66,8 @@ public class ContainerManager {
                 th.printStackTrace();
                 logger.logError(new IneundoError("Canno't start the container.", th));
             } else {
-                logger.logInfo("Container " + type.name().toLowerCase() + "; ID=" + re.getId() + " started on the network");
+                //TODO rmq here
+                Ineundo.getInstance().getServer().getEventManager().fire(new ContainerStartEvent(re.getId(), type, container.getContainerName()));
             }
         });
     }

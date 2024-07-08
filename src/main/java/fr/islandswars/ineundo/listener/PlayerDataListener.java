@@ -93,7 +93,7 @@ public class PlayerDataListener extends LazyListener {
     public void onPlayerDisconnect(DisconnectEvent event) {
         var uuid      = event.getPlayer().getUniqueId();
         var optPlayer = getPlayer(uuid);
-        optPlayer.ifPresent(this::savePlayerData);
+        optPlayer.ifPresent(p -> savePlayerData(p, event));
     }
 
     @Subscribe(order = PostOrder.FIRST)
@@ -102,7 +102,7 @@ public class PlayerDataListener extends LazyListener {
         }
     }
 
-    private void savePlayerData(ProxyPlayer player) {
+    private void savePlayerData(ProxyPlayer player, DisconnectEvent event) {
         updateFromRedis(player).whenCompleteAsync((p, th) -> {
             if (th != null)
                 error(new IneundoError("Error when retrieving player data from Redis", th));
@@ -117,6 +117,11 @@ public class PlayerDataListener extends LazyListener {
                     error(new IneundoError("Error when saving player data in MongoDB.", thr));
                     getIneundo().getInfraLogger().log(Level.ERROR, playersCollection.serialize(p).toJson()); //manual save in case of problem
                 }
+                if (event.getLoginStatus().equals(DisconnectEvent.LoginStatus.SUCCESSFUL_LOGIN))
+                    redis.getConnection().decr(RedisConstants.PLAYER_COUNT).whenCompleteAsync((count, thro) -> {
+                        if (thro != null)
+                            error(new IneundoError("Canno't update player count", thro));
+                    });
                 getIneundo().removePlayer(player);
                 pendingResults.remove(subscriber);
             });
@@ -148,6 +153,10 @@ public class PlayerDataListener extends LazyListener {
                             new PlayerConnectionLog(Level.ERROR, "Cannot save data in redis").withEvent(event).log();
                         } else
                             new PlayerConnectionLog(Level.INFO, "Successful connection").withEvent(event).log();
+                        redis.getConnection().incr(RedisConstants.PLAYER_COUNT).whenCompleteAsync((count, thro) -> {
+                            if (thro != null)
+                                error(new IneundoError("Canno't update player count", thro));
+                        });
                     });
                 }
             }
@@ -217,7 +226,7 @@ public class PlayerDataListener extends LazyListener {
 
     private void injectGameProfile(ProxyPlayer isPlayer, Player player) {
         var profileProperty = player.getGameProfile().getProperties().stream().filter(prop -> prop.getName().equals("textures")).findFirst();
-        profileProperty.ifPresent(prop ->{
+        profileProperty.ifPresent(prop -> {
             if (isPlayer.getProfile() == null || !isPlayer.getProfile().equals(prop))
                 isPlayer.setProfile(prop);
         });

@@ -1,8 +1,10 @@
-package fr.islandswars.ineundo.manager.container;
+package fr.islandswars.ineundo.event;
+
+import fr.islandswars.ineundo.manager.container.ContainerType;
 
 /**
- * File <b>ContainerType</b> located on fr.islandswars.ineundo.manager.container
- * ContainerType is a part of ineundo.
+ * File <b>ContainerStartEvent</b> located on fr.islandswars.ineundo.event
+ * ContainerStartEvent is a part of ineundo.
  * <p>
  * Copyright (c) 2017 - 2024 Islands Wars.
  * <p>
@@ -21,27 +23,9 @@ package fr.islandswars.ineundo.manager.container;
  * <p>
  *
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
- * Created the 08/07/2024 at 13:15
+ * Created the 08/07/2024 at 18:03
  * @since 0.1
  */
-public enum ContainerType {
+public record ContainerStartEvent(String containerId, ContainerType type, String containerName) {
 
-    ISLANDS("papermc-server:v1.0", 20),
-    HUB("papermc-server:v1.0", 20);
-
-    private final String imageID;
-    private final int    playerCount;
-
-    ContainerType(String imageID, int playerCount) {
-        this.imageID = imageID;
-        this.playerCount = playerCount;
-    }
-
-    public int getPlayerCount() {
-        return playerCount;
-    }
-
-    public String getImageID() {
-        return imageID;
-    }
 }

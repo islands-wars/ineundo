@@ -4,15 +4,18 @@ import com.google.inject.Inject;
 import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
+import com.velocitypowered.api.event.proxy.ProxyPingEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.proxy.server.ServerPing;
 import fr.islandswars.commons.service.docker.DockerConnection;
 import fr.islandswars.commons.service.mongodb.MongoDBConnection;
 import fr.islandswars.commons.service.rabbitmq.RabbitMQConnection;
 import fr.islandswars.commons.service.redis.RedisConnection;
 import fr.islandswars.commons.utils.LogUtils;
 import fr.islandswars.ineundo.listener.PlayerDataListener;
+import fr.islandswars.ineundo.listener.ServerPingListener;
 import fr.islandswars.ineundo.locale.TranslationLoader;
 import fr.islandswars.ineundo.log.InternalLogger;
 import fr.islandswars.ineundo.manager.IneundoManager;
@@ -92,7 +95,7 @@ public class Ineundo {
 
     @Subscribe
     public void onInitialization(ProxyInitializeEvent event) {
-        if(this.velocitySecret == null)
+        if (this.velocitySecret == null)
             server.shutdown(Component.translatable("proxy.startup.secret"));
         new TranslationLoader().load("locale.ineundo");
         //databases
@@ -112,7 +115,8 @@ public class Ineundo {
 
         //listeners
         new PlayerDataListener(this, mongoConnection, redisConnection);
-        this.manager = new IneundoManager(redisConnection, rabbitMQConnection, dockerConnection, velocitySecret);
+        new ServerPingListener(this, redisConnection);
+        this.manager = new IneundoManager(this, redisConnection, rabbitMQConnection, dockerConnection, velocitySecret);
         manager.initialize();
     }
 

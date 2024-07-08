@@ -1,14 +1,18 @@
 package fr.islandswars.ineundo.manager;
 
+import com.velocitypowered.api.event.Subscribe;
 import fr.islandswars.commons.service.rabbitmq.packet.proxy.ProxyDownPacket;
 import fr.islandswars.commons.service.rabbitmq.packet.proxy.ProxyUpPacket;
 import fr.islandswars.commons.service.redis.RedisConnection;
 import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.lang.IneundoError;
 import fr.islandswars.ineundo.log.InternalLogger;
+import fr.islandswars.ineundo.manager.container.ContainerType;
 import fr.islandswars.ineundo.utils.RedisConstants;
 import net.kyori.adventure.text.Component;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
@@ -83,5 +87,9 @@ public class ProxyManager {
         packet.setProxyId(PROXY_ID);
         exchange.sendPacketToProxies(packet);
         connection.getConnection().lrem(RedisConstants.PROXY, 0, PROXY_ID.toString()).get();
+    }
+
+    protected int getOnlineProxies() {
+        return proxies.size() + 1;
     }
 }

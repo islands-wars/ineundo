@@ -6,7 +6,7 @@ services:
       TYPE: "VELOCITY"
       VELOCITY_SECRET: "jfei7Ua34jhQ"
     ports:
-      - '25565:25577'
+      - '25565:25565'
     volumes:
       - ./run:/server
       - ./build/libs:/server/plugins/
@@ -33,19 +33,6 @@ services:
       redis:
         condition: service_healthy
       rabbitmq:
-        condition: service_healthy
-
-  mc:
-    build: paper/.
-    container_name: mc
-    environment:
-      VELOCITY_SECRET: "jfei7Ua34jhQ"
-    networks:
-      - islands_network
-    depends_on:
-      mongo:
-        condition: service_healthy
-      redis:
         condition: service_healthy
 
   mongo:
