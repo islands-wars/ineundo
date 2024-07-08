@@ -1,8 +1,10 @@
-package fr.islandswars.ineundo.utils;
+package fr.islandswars.ineundo.manager.container;
+
+import java.util.UUID;
 
 /**
- * File <b>ProxyConstants</b> located on fr.islandswars.ineundo.utils
- * ProxyConstants is a part of ineundo.
+ * File <b>Container</b> located on fr.islandswars.ineundo.manager.container
+ * Container is a part of ineundo.
  * <p>
  * Copyright (c) 2017 - 2024 Islands Wars.
  * <p>
@@ -21,12 +23,30 @@ package fr.islandswars.ineundo.utils;
  * <p>
  *
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
- * Created the 25/06/2024 at 22:36
+ * Created the 08/07/2024 at 13:11
  * @since 0.1
  */
-public class ProxyConstants {
+public class Container {
 
-    public static final String PROXY            = "INEUNDO";
-    public static final String PROXY_SECRET_KEY = "VELOCITY_SECRET";
+    private final ContainerType type;
+    private final UUID          containerID;
+
+    public Container(ContainerType type) {
+        this.type = type;
+        this.containerID = UUID.randomUUID();
+    }
+
+    public String getImageID() {
+        return type.getImageID();
+    }
+
+    public UUID getServerID() {
+        //TODO check not already used
+        return containerID;
+    }
+
+    public String getContainerName() {
+        return type.name().toLowerCase() + "_" + containerID.toString();
+    }
 
 }

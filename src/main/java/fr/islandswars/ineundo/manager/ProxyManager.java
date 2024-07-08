@@ -64,7 +64,6 @@ public class ProxyManager {
             var packet = new ProxyUpPacket();
             packet.setProxyId(PROXY_ID);
             exchange.sendPacketToProxies(packet);
-            logger.logInfo("register proxy with id : " + PROXY_ID.toString());
         });
         connection.getConnection().lrange(RedisConstants.PROXY, 0, -1).whenCompleteAsync((re, th) -> {
             if (th != null) {
@@ -74,19 +73,15 @@ public class ProxyManager {
             for (var proxyKey : re) {
                 if (!PROXY_ID.equals(UUID.fromString(proxyKey))) {
                     proxies.add(UUID.fromString(proxyKey));
-                    logger.logInfo("register existing proxies with id " + proxyKey);
                 }
             }
-            logger.logInfo("register existing proxies");
         });
     }
 
     protected void shutdown(IslandsExchange exchange) throws ExecutionException, InterruptedException {
-        //synchronize this method
         var packet = new ProxyDownPacket();
         packet.setProxyId(PROXY_ID);
         exchange.sendPacketToProxies(packet);
         connection.getConnection().lrem(RedisConstants.PROXY, 0, PROXY_ID.toString()).get();
-
     }
 }

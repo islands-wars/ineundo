@@ -1,8 +1,10 @@
 package fr.islandswars.ineundo.manager;
 
+import fr.islandswars.commons.service.docker.DockerConnection;
 import fr.islandswars.commons.service.rabbitmq.RabbitMQConnection;
 import fr.islandswars.commons.service.redis.RedisConnection;
 import fr.islandswars.ineundo.manager.container.ContainerManager;
+import fr.islandswars.ineundo.manager.container.ContainerType;
 
 import java.util.concurrent.ExecutionException;
 
@@ -37,15 +39,16 @@ public class IneundoManager {
     private final ContainerManager containerManager;
     private final IslandsExchange  exchange;
 
-    public IneundoManager(RedisConnection redis, RabbitMQConnection rabbit) {
+    public IneundoManager(RedisConnection redis, RabbitMQConnection rabbit, DockerConnection docker, String velocitySecret) {
         this.redis = redis;
         this.proxyManager = new ProxyManager(redis);
-        this.containerManager = new ContainerManager();
+        this.containerManager = new ContainerManager(docker, velocitySecret);
         this.exchange = new IslandsExchange(rabbit, proxyManager.getProxyId());
     }
 
     public void initialize() {
         proxyManager.registerProxy(exchange);
+        containerManager.start(ContainerType.ISLANDS);
     }
 
     public void shutdown() throws ExecutionException, InterruptedException {

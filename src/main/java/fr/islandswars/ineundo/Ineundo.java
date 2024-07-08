@@ -7,6 +7,7 @@ import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.proxy.ProxyServer;
+import fr.islandswars.commons.service.docker.DockerConnection;
 import fr.islandswars.commons.service.mongodb.MongoDBConnection;
 import fr.islandswars.commons.service.rabbitmq.RabbitMQConnection;
 import fr.islandswars.commons.service.redis.RedisConnection;
@@ -16,6 +17,7 @@ import fr.islandswars.ineundo.locale.TranslationLoader;
 import fr.islandswars.ineundo.log.InternalLogger;
 import fr.islandswars.ineundo.manager.IneundoManager;
 import fr.islandswars.ineundo.player.ProxyPlayer;
+import fr.islandswars.ineundo.utils.ProxyConstants;
 import net.kyori.adventure.text.Component;
 import org.apache.logging.log4j.Level;
 
@@ -61,9 +63,11 @@ public class Ineundo {
     private final  MongoDBConnection                 mongoConnection;
     private final  RedisConnection                   redisConnection;
     private final  RabbitMQConnection                rabbitMQConnection;
+    private final  DockerConnection                  dockerConnection;
     private final  ProxyServer                       server;
     private final  InternalLogger                    infraLogger;
     private final  AtomicBoolean                     STAFF_ONLY;
+    private final  String                            velocitySecret;
     private        IneundoManager                    manager;
 
     @Inject
@@ -73,10 +77,12 @@ public class Ineundo {
         this.mongoConnection = new MongoDBConnection();
         this.redisConnection = new RedisConnection();
         this.rabbitMQConnection = new RabbitMQConnection();
+        this.dockerConnection = new DockerConnection();
         this.infraLogger = new InternalLogger();
         this.players = new CopyOnWriteArrayList<>();
         this.STAFF_ONLY = new AtomicBoolean(false);
         this.server = server;
+        this.velocitySecret = System.getenv(ProxyConstants.PROXY_SECRET_KEY);
         LogUtils.setErrorConsummer(infraLogger::logError);
     }
 
@@ -86,15 +92,19 @@ public class Ineundo {
 
     @Subscribe
     public void onInitialization(ProxyInitializeEvent event) {
+        if(this.velocitySecret == null)
+            server.shutdown(Component.translatable("proxy.startup.secret"));
         new TranslationLoader().load("locale.ineundo");
         //databases
         try {
             mongoConnection.load();
             redisConnection.load();
             rabbitMQConnection.load();
+            dockerConnection.load();
             mongoConnection.connect();
             redisConnection.connect();
             rabbitMQConnection.connect();
+            dockerConnection.connect();
         } catch (Exception e) {
             infraLogger.logError(e);
             server.shutdown(Component.translatable("proxy.startup.database.error"));
@@ -102,7 +112,7 @@ public class Ineundo {
 
         //listeners
         new PlayerDataListener(this, mongoConnection, redisConnection);
-        this.manager = new IneundoManager(redisConnection, rabbitMQConnection);
+        this.manager = new IneundoManager(redisConnection, rabbitMQConnection, dockerConnection, velocitySecret);
         manager.initialize();
     }
 
@@ -116,6 +126,7 @@ public class Ineundo {
             mongoConnection.close();
             redisConnection.close();
             rabbitMQConnection.close();
+            dockerConnection.close();
         } catch (Exception e) {
             infraLogger.logError(e);
         }

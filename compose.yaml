@@ -4,6 +4,7 @@ services:
     container_name: velocity
     environment:
       TYPE: "VELOCITY"
+      VELOCITY_SECRET: "jfei7Ua34jhQ"
     ports:
       - '25565:25577'
     volumes:
@@ -113,6 +114,7 @@ services:
 
 networks:
   islands_network:
+    name: islands_dev_network
     driver: bridge
 
 secrets:

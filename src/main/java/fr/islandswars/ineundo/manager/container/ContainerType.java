@@ -1,8 +1,8 @@
-package fr.islandswars.ineundo.utils;
+package fr.islandswars.ineundo.manager.container;
 
 /**
- * File <b>ProxyConstants</b> located on fr.islandswars.ineundo.utils
- * ProxyConstants is a part of ineundo.
+ * File <b>ContainerType</b> located on fr.islandswars.ineundo.manager.container
+ * ContainerType is a part of ineundo.
  * <p>
  * Copyright (c) 2017 - 2024 Islands Wars.
  * <p>
@@ -21,12 +21,21 @@ package fr.islandswars.ineundo.utils;
  * <p>
  *
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
- * Created the 25/06/2024 at 22:36
+ * Created the 08/07/2024 at 13:15
  * @since 0.1
  */
-public class ProxyConstants {
+public enum ContainerType {
 
-    public static final String PROXY            = "INEUNDO";
-    public static final String PROXY_SECRET_KEY = "VELOCITY_SECRET";
+    ISLANDS("papermc-server:v1.0"),
+    HUB("papermc-server");
 
+    private final String imageID;
+
+    ContainerType(String imageID) {
+        this.imageID = imageID;
+    }
+
+    public String getImageID() {
+        return imageID;
+    }
 }
