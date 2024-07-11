@@ -4,13 +4,19 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.LogConfig;
+import fr.islandswars.commons.log.IslandsLogger;
+import fr.islandswars.commons.secrets.DockerSecretsLoader;
+import fr.islandswars.commons.service.ServiceType;
+import fr.islandswars.commons.service.docker.ContainerType;
 import fr.islandswars.commons.service.docker.DockerConnection;
+import fr.islandswars.commons.service.rabbitmq.packet.proxy.ContainerUpPacket;
 import fr.islandswars.ineundo.Ineundo;
-import fr.islandswars.ineundo.event.ContainerStartEvent;
 import fr.islandswars.ineundo.lang.IneundoError;
-import fr.islandswars.ineundo.log.InternalLogger;
 import fr.islandswars.ineundo.utils.ProxyConstants;
+import fr.islandswars.ineundo.utils.RedisConstants;
+import io.lettuce.core.api.async.RedisAsyncCommands;
 
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -39,24 +45,37 @@ import java.util.concurrent.CompletableFuture;
  */
 public class ContainerManager {
 
-    private final DockerClient   dockerClient;
-    private final String         velocitySecret;
-    private final HostConfig     hostConfig;
-    private final InternalLogger logger;
+    private final DockerClient                       dockerClient;
+    private final RedisAsyncCommands<String, String> redis;
+    private final String                             velocitySecret;
+    private final HostConfig                         hostConfig;
+    private final IslandsLogger                      logger;
+    private final String[]                           secrets;
 
-    public ContainerManager(DockerConnection dockerConnection, String velocitySecret) {
+    public ContainerManager(DockerConnection dockerConnection, RedisAsyncCommands<String, String> redis, String velocitySecret) {
         this.dockerClient = dockerConnection.getConnection();
         this.velocitySecret = velocitySecret;
-        this.logger = Ineundo.getInstance().getInfraLogger();
-        this.hostConfig = HostConfig.newHostConfig().withNetworkMode("bridge").withLogConfig(new LogConfig().setType(LogConfig.LoggingType.SYSLOG));
+        this.redis = redis;
+        this.logger = IslandsLogger.getLogger();
+        this.hostConfig = HostConfig.newHostConfig()
+                .withNetworkMode("bridge")
+                .withLogConfig(new LogConfig().setType(LogConfig.LoggingType.SYSLOG));
+        this.secrets = loadSecrets();
     }
 
     public void start(ContainerType type) {
-        var container = new Container(type);
-        CompletableFuture<CreateContainerResponse> containerFuture = CompletableFuture.supplyAsync(() -> dockerClient.createContainerCmd(container.getImageID())
-                .withName(container.getContainerName())
-                .withEnv(ProxyConstants.PROXY_SECRET_KEY + "=" + velocitySecret)
-                .withHostConfig(hostConfig).exec());
+        var container = new Container(type, ContainerImage.getImage(type));
+        CompletableFuture<CreateContainerResponse> containerFuture = CompletableFuture.supplyAsync(() -> {
+            var env = Arrays.copyOf(secrets, secrets.length + 4);
+            env[secrets.length] = ProxyConstants.PROXY_SECRET_KEY + "=" + velocitySecret;
+            env[secrets.length + 1] = "SERVER_TYPE=" + type.name();
+            env[secrets.length + 2] = "SERVER_ID=" + container.getContainerID();
+            env[secrets.length + 3] = "COMPOSE=true";
+            return dockerClient.createContainerCmd(container.getImageID())
+                    .withName(container.getContainerName())
+                    .withEnv(env)
+                    .withHostConfig(hostConfig).exec();
+        });
         containerFuture.thenApplyAsync(re -> {
             dockerClient.connectToNetworkCmd().withContainerId(re.getId()).withNetworkId("islands_dev_network").exec();
             dockerClient.startContainerCmd(re.getId()).exec();
@@ -66,14 +85,32 @@ public class ContainerManager {
                 th.printStackTrace();
                 logger.logError(new IneundoError("Canno't start the container.", th));
             } else {
-                //TODO rmq here
-                Ineundo.getInstance().getServer().getEventManager().fire(new ContainerStartEvent(re.getId(), type, container.getContainerName()));
+                var op1 = redis.set(RedisConstants.SERVER_NAME(container.getContainerID()), container.getContainerName()).toCompletableFuture();
+                var op2 = redis.set(RedisConstants.SERVER_TYPE(container.getContainerID()), type.name()).toCompletableFuture();
+                var op3 = redis.set(RedisConstants.SERVER_PLAYER_COUNT(container.getContainerID()), "0").toCompletableFuture();
+                CompletableFuture.allOf(op1, op2, op3).whenCompleteAsync((r, thr) -> {
+                    if (thr != null)
+                        logger.logError(new IneundoError("Canno't set container data in redis"));
+
+                    Ineundo.getInstance().sendPacketToProxies(new ContainerUpPacket().withContainerId(container.getContainerID()).withProxyId(Ineundo.getInstance().getProxyId()));
+                });
+
             }
         });
     }
 
     public void stop() {
 
+    }
+
+    //TODO remove or add debug spec
+    private String[] loadSecrets() {
+        var      values  = ServiceType.cachedValues();
+        String[] secrets = new String[values.length];
+        for (int i = 0; i < values.length; i++) {
+            secrets[i] = values[i].getSecretFileName() + "=" + DockerSecretsLoader.getValue(values[i]);
+        }
+        return secrets;
     }
 
 }

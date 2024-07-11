@@ -2,16 +2,14 @@ package fr.islandswars.ineundo.log;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import fr.islandswars.commons.utils.ReflectionUtil;
-import fr.islandswars.ineundo.lang.IneundoError;
-import fr.islandswars.ineundo.log.internal.DefaultLog;
-import fr.islandswars.ineundo.log.internal.ErrorLog;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.Logger;
+import fr.islandswars.commons.log.IslandsLogger;
+import fr.islandswars.commons.log.LevelTypeAdapter;
+import fr.islandswars.commons.log.Log;
+import fr.islandswars.commons.log.StackTraceElementTypeAdapter;
 import org.apache.logging.log4j.core.config.Configurator;
 
 import java.net.URISyntaxException;
+import java.util.logging.Level;
 
 /**
  * File <b>InternalLogger</b> located on fr.islandswars.ineundo.log
@@ -37,19 +35,13 @@ import java.net.URISyntaxException;
  * Created the 25/06/2024 at 19:21
  * @since 0.1
  */
-public class InternalLogger {
+public class InternalLogger extends IslandsLogger {
 
-    private final Logger  rootLogger;
-    private final Gson    gson;
-    private final boolean debug;
+    private final Gson gson;
 
-    public InternalLogger() {
-        this.gson = new GsonBuilder()
-                .registerTypeAdapter(Level.class, new Log4jLevelSerializer())
-                .registerTypeAdapter(StackTraceElement.class, new StackTraceElementTypeAdapter())
-                .create();
-        this.debug = Boolean.parseBoolean(System.getenv("DEBUG"));
-        this.rootLogger = (Logger) LogManager.getRootLogger();
+    public InternalLogger(String containerName) {
+        super(containerName);
+        this.gson = new GsonBuilder().registerTypeAdapter(Level.class, new LevelTypeAdapter()).registerTypeAdapter(StackTraceElement.class, new StackTraceElementTypeAdapter()).create();
         //overrideDefault(); //TODO update
     }
 
@@ -61,35 +53,8 @@ public class InternalLogger {
         }
     }
 
-    public void logInfo(String message) {
-        log(Level.INFO, message);
-    }
-
-    public void log(Level level, String msg) {
-        if (level.equals(Level.ERROR))
-            logError(new IneundoError(msg));
-        else
-            new DefaultLog(level, msg).log();
-    }
-
-    public void logDebug(String message) {
-        log(Level.DEBUG, message);
-    }
-
-    public <T extends Log> T createCustomLog(Class<T> clazz, Level level, String message) {
-        return ReflectionUtil.getConstructorAccessor(clazz, Level.class, String.class).newInstance(level, message);
-    }
-
-    public void logError(Exception e) {
-        new ErrorLog(Level.ERROR, e.getMessage() == null ? "Error" : e.getMessage()).supplyStacktrace(e.fillInStackTrace()).log();
-    }
-
-    protected void sysout(Log object) {
-        System.out.print(object.msg);
-        if (object.getLevel() == Level.DEBUG) {
-            if (debug)
-                rootLogger.log(object.getLevel(), gson.toJson(object));
-        } else
-            rootLogger.log(object.getLevel(), gson.toJson(object));
+    @Override
+    public void sysout(Log log) {
+        System.out.println(gson.toJson(log));
     }
 }

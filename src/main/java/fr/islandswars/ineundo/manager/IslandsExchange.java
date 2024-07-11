@@ -2,13 +2,13 @@ package fr.islandswars.ineundo.manager;
 
 import com.rabbitmq.client.BuiltinExchangeType;
 import com.rabbitmq.client.Channel;
+import fr.islandswars.commons.log.IslandsLogger;
 import fr.islandswars.commons.service.rabbitmq.RabbitMQConnection;
 import fr.islandswars.commons.service.rabbitmq.packet.Packet;
 import fr.islandswars.commons.service.rabbitmq.packet.PacketManager;
 import fr.islandswars.commons.service.rabbitmq.packet.PacketType;
-import fr.islandswars.ineundo.Ineundo;
-import fr.islandswars.ineundo.log.InternalLogger;
 import fr.islandswars.ineundo.utils.RabbitConstants;
+import io.lettuce.core.api.async.RedisAsyncCommands;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -43,28 +43,23 @@ public class IslandsExchange {
     private final PacketManager       PACKET_MANAGER;
     private final RabbitMQConnection  connection;
     private final Channel             channel;
-    private final InternalLogger      logger;
+    private final IslandsLogger      logger;
     private final UUID                proxyId;
 
-    public IslandsExchange(RabbitMQConnection connection, UUID proxyId) {
+    public IslandsExchange(RabbitMQConnection connection, RedisAsyncCommands<String, String> redis, UUID proxyId) {
         this.PACKET_MANAGER = new PacketManager(PacketType.Bound.MANAGER, 1024, true);
-        this.logger = Ineundo.getInstance().getInfraLogger();
+        this.logger = IslandsLogger.getLogger();
         this.connection = connection;
         this.proxyId = proxyId;
         this.channel = connection.getConnection();
-        try {
-            channel.exchangeDeclare(RabbitConstants.EXCHANGE, EXCHANGE_TYPE);
-        } catch (Exception e) {
-            logger.logError(e);
-        }
-        //new ExchangePacket(PACKET_MANAGER, server, this);
+        new ExchangePacketListener(PACKET_MANAGER, redis, logger);
         initConnection();
     }
 
-    public void sendPacketToProxies(Packet packet) {
+    public void sendPacket(Packet packet, String routingKey) {
         try {
             var buffer = PACKET_MANAGER.encode(packet);
-            sendPacket(RabbitConstants.getProxiesQueue(), buffer);
+            sendPacket(routingKey, buffer);
         } catch (Exception e) {
             logger.logError(e);
         }
@@ -84,8 +79,8 @@ public class IslandsExchange {
             var queue = RabbitConstants.getProxyQueue(proxyId);
             channel.exchangeDeclare(RabbitConstants.EXCHANGE, EXCHANGE_TYPE);
             channel.queueDeclare(queue, false, true, false, null);
-            channel.queueBind(queue, RabbitConstants.EXCHANGE, queue); //listen to specific message
-            channel.queueBind(queue, RabbitConstants.EXCHANGE, RabbitConstants.getProxiesQueue()); //listen to all proxies message
+            channel.queueBind(queue, RabbitConstants.EXCHANGE, queue); //listen to specific message proxy.uuid
+            channel.queueBind(queue, RabbitConstants.EXCHANGE, RabbitConstants.getProxiesQueue()); //listen to all proxies message proxy.all
 
             channel.basicConsume(queue, true, (tag, delivery) -> {
                 try {
@@ -94,7 +89,6 @@ public class IslandsExchange {
                     logger.logError(e);
                 }
                 //TODO remove
-                logger.logInfo(delivery.getEnvelope().toString());
             }, consumerTag -> {
             });
         } catch (IOException e) {

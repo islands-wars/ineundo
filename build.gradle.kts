@@ -1,9 +1,7 @@
 plugins {
     id("java")
     id("maven-publish")
-    id("xyz.jpenilla.run-velocity") version "2.3.0"
     id("com.github.johnrengelman.shadow") version "8.1.1"
-    id("org.jetbrains.gradle.plugin.idea-ext") version "1.0.1"
 }
 
 group = "fr.islandswars"
@@ -32,7 +30,8 @@ dependencies {
     implementation("org.apache.logging.log4j:log4j-core:3.0.0-beta2")
     implementation("com.github.docker-java:docker-java-core:3.3.6")
     implementation("com.github.docker-java:docker-java-transport-httpclient5:3.3.6")
-    implementation("fr.islandswars:commons:0.3.2")
+    implementation("it.unimi.dsi:fastutil:8.2.1")
+    implementation("fr.islandswars:commons:0.4.4")
     compileOnly("com.velocitypowered:velocity-api:3.3.0-SNAPSHOT")
     annotationProcessor("com.velocitypowered:velocity-api:3.3.0-SNAPSHOT")
 }
@@ -100,12 +99,5 @@ publishing {
                 password = project.findProperty("gpr.token") as String? ?: System.getenv("TOKEN")
             }
         }
-    }
-}
-
-tasks {
-    runVelocity {
-        dependsOn(shadowJar)
-        velocityVersion("3.3.0-SNAPSHOT")
     }
 }

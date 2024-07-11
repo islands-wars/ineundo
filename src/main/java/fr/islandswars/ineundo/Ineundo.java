@@ -4,16 +4,15 @@ import com.google.inject.Inject;
 import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
-import com.velocitypowered.api.event.proxy.ProxyPingEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.proxy.ProxyServer;
-import com.velocitypowered.api.proxy.server.ServerPing;
+import fr.islandswars.commons.log.IslandsLogger;
 import fr.islandswars.commons.service.docker.DockerConnection;
 import fr.islandswars.commons.service.mongodb.MongoDBConnection;
 import fr.islandswars.commons.service.rabbitmq.RabbitMQConnection;
+import fr.islandswars.commons.service.rabbitmq.packet.Packet;
 import fr.islandswars.commons.service.redis.RedisConnection;
-import fr.islandswars.commons.utils.LogUtils;
 import fr.islandswars.ineundo.listener.PlayerDataListener;
 import fr.islandswars.ineundo.listener.ServerPingListener;
 import fr.islandswars.ineundo.locale.TranslationLoader;
@@ -21,13 +20,14 @@ import fr.islandswars.ineundo.log.InternalLogger;
 import fr.islandswars.ineundo.manager.IneundoManager;
 import fr.islandswars.ineundo.player.ProxyPlayer;
 import fr.islandswars.ineundo.utils.ProxyConstants;
+import fr.islandswars.ineundo.utils.RabbitConstants;
 import net.kyori.adventure.text.Component;
-import org.apache.logging.log4j.Level;
 
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
 
 /**
  * File <b>Ineundo</b> located on fr.islandswars.ineundo
@@ -68,7 +68,6 @@ public class Ineundo {
     private final  RabbitMQConnection                rabbitMQConnection;
     private final  DockerConnection                  dockerConnection;
     private final  ProxyServer                       server;
-    private final  InternalLogger                    infraLogger;
     private final  AtomicBoolean                     STAFF_ONLY;
     private final  String                            velocitySecret;
     private        IneundoManager                    manager;
@@ -81,12 +80,11 @@ public class Ineundo {
         this.redisConnection = new RedisConnection();
         this.rabbitMQConnection = new RabbitMQConnection();
         this.dockerConnection = new DockerConnection();
-        this.infraLogger = new InternalLogger();
         this.players = new CopyOnWriteArrayList<>();
         this.STAFF_ONLY = new AtomicBoolean(false);
         this.server = server;
         this.velocitySecret = System.getenv(ProxyConstants.PROXY_SECRET_KEY);
-        LogUtils.setErrorConsummer(infraLogger::logError);
+        new InternalLogger("proxy");
     }
 
     public static Ineundo getInstance() {
@@ -109,14 +107,14 @@ public class Ineundo {
             rabbitMQConnection.connect();
             dockerConnection.connect();
         } catch (Exception e) {
-            infraLogger.logError(e);
+            IslandsLogger.getLogger().logError(e);
             server.shutdown(Component.translatable("proxy.startup.database.error"));
         }
 
         //listeners
-        new PlayerDataListener(this, mongoConnection, redisConnection);
-        new ServerPingListener(this, redisConnection);
-        this.manager = new IneundoManager(this, redisConnection, rabbitMQConnection, dockerConnection, velocitySecret);
+        new PlayerDataListener(this, mongoConnection, redisConnection.getConnection());
+        new ServerPingListener(this, redisConnection.getConnection());
+        this.manager = new IneundoManager(this, redisConnection.getConnection(), rabbitMQConnection, dockerConnection, velocitySecret);
         manager.initialize();
     }
 
@@ -132,16 +130,28 @@ public class Ineundo {
             rabbitMQConnection.close();
             dockerConnection.close();
         } catch (Exception e) {
-            infraLogger.logError(e);
+            IslandsLogger.getLogger().logError(e);
         }
+    }
+
+    public void sendPacketToProxies(Packet packet) {
+        sendPacket(packet, RabbitConstants.getProxiesQueue());
+    }
+
+    public void sendPacketToProxy(Packet packet, UUID proxyId) {
+        sendPacket(packet, RabbitConstants.getProxyQueue(proxyId));
+    }
+
+    public void sendPacket(Packet packet, String routingKey) {
+        manager.sendPacket(packet, routingKey);
+    }
+
+    public UUID getProxyId() {
+        return manager.getProxyId();
     }
 
     public ProxyServer getServer() {
         return server;
-    }
-
-    public InternalLogger getInfraLogger() {
-        return infraLogger;
     }
 
     public AtomicBoolean getSTAFF_ONLY() {
@@ -150,7 +160,7 @@ public class Ineundo {
 
     public void addPlayer(ProxyPlayer player) {
         if (getPlayer(player.getUUID()).isPresent())
-            infraLogger.log(Level.WARN, "Player " + player.getUUID() + " is already registered....");
+            IslandsLogger.getLogger().log(Level.WARNING, "Player " + player.getUUID() + " is already registered....");
         else
             players.add(player);
     }

@@ -5,13 +5,11 @@ import com.velocitypowered.api.event.proxy.ProxyPingEvent;
 import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.api.proxy.server.ServerPing;
 import com.velocitypowered.api.util.Favicon;
-import fr.islandswars.commons.service.redis.RedisConnection;
 import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.lang.IneundoError;
 import fr.islandswars.ineundo.utils.RedisConstants;
+import io.lettuce.core.api.async.RedisAsyncCommands;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.HoverEvent;
-import net.kyori.adventure.text.event.HoverEventSource;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -51,7 +49,7 @@ public class ServerPingListener extends LazyListener {
     private final Component          description;
     private       int                onlinePlayer;
 
-    public ServerPingListener(Ineundo ineundo, RedisConnection connection) {
+    public ServerPingListener(Ineundo ineundo, RedisAsyncCommands<String, String> redis) {
         super(ineundo);
         var protocol = ProtocolVersion.MINECRAFT_1_21.getProtocol();
         var name     = ProtocolVersion.MINECRAFT_1_21.getVersionIntroducedIn();
@@ -60,7 +58,6 @@ public class ServerPingListener extends LazyListener {
         this.description = Component.text("Islands Wars");
         this.onlinePlayer = 0;
 
-        var redis = connection.getConnection();
         ineundo.getServer().getScheduler().buildTask(ineundo, () -> {
             redis.get(RedisConstants.PLAYER_COUNT).whenCompleteAsync((re, th) -> {
                 if (th != null)

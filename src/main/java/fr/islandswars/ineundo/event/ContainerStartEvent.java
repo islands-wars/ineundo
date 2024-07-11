@@ -1,6 +1,8 @@
 package fr.islandswars.ineundo.event;
 
-import fr.islandswars.ineundo.manager.container.ContainerType;
+import fr.islandswars.commons.service.docker.ContainerType;
+
+import java.util.UUID;
 
 /**
  * File <b>ContainerStartEvent</b> located on fr.islandswars.ineundo.event
@@ -26,6 +28,6 @@ import fr.islandswars.ineundo.manager.container.ContainerType;
  * Created the 08/07/2024 at 18:03
  * @since 0.1
  */
-public record ContainerStartEvent(String containerId, ContainerType type, String containerName) {
+public record ContainerStartEvent(UUID containerId, ContainerType type, String containerName) {
 
 }

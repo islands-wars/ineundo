@@ -2,17 +2,19 @@ package fr.islandswars.ineundo.manager;
 
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.scheduler.ScheduledTask;
+import fr.islandswars.commons.log.IslandsLogger;
+import fr.islandswars.commons.service.docker.ContainerType;
 import fr.islandswars.commons.service.docker.DockerConnection;
 import fr.islandswars.commons.service.rabbitmq.RabbitMQConnection;
-import fr.islandswars.commons.service.redis.RedisConnection;
+import fr.islandswars.commons.service.rabbitmq.packet.Packet;
 import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.event.ContainerStartEvent;
 import fr.islandswars.ineundo.listener.LazyListener;
 import fr.islandswars.ineundo.manager.container.ContainerManager;
-import fr.islandswars.ineundo.manager.container.ContainerType;
+import io.lettuce.core.api.async.RedisAsyncCommands;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -43,7 +45,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class IneundoManager extends LazyListener {
 
-    private final RedisConnection             redis;
     private final ProxyManager                proxyManager;
     private final ContainerManager            containerManager;
     private final IslandsExchange             exchange;
@@ -52,23 +53,22 @@ public class IneundoManager extends LazyListener {
     private final Map<ContainerType, Integer> futureCapacity;
     private       ScheduledTask               updateTask;
 
-    public IneundoManager(Ineundo ineundo, RedisConnection redis, RabbitMQConnection rabbit, DockerConnection docker, String velocitySecret) {
+    public IneundoManager(Ineundo ineundo, RedisAsyncCommands<String, String> redis, RabbitMQConnection rabbit, DockerConnection docker, String velocitySecret) {
         super(ineundo);
-        this.redis = redis;
         this.proxyManager = new ProxyManager(redis);
-        this.containerManager = new ContainerManager(docker, velocitySecret);
-        this.exchange = new IslandsExchange(rabbit, proxyManager.getProxyId());
+        this.containerManager = new ContainerManager(docker, redis, velocitySecret);
+        this.exchange = new IslandsExchange(rabbit, redis, proxyManager.getProxyId());
         this.ineundo = Ineundo.getInstance();
         this.THRESHOLD = 10;
         this.futureCapacity = new ConcurrentHashMap<>();
-        for (ContainerType type : ContainerType.values()) {
+        for (ContainerType type : ContainerType.cachedValues()) {
             futureCapacity.put(type, 0);
         }
     }
 
     public void initialize() {
         proxyManager.registerProxy(exchange);
-        this.updateTask = ineundo.getServer().getScheduler().buildTask(ineundo, updatesLogic()).repeat(1, TimeUnit.SECONDS).schedule();
+        this.updateTask = ineundo.getServer().getScheduler().buildTask(ineundo, updatesLogic()).repeat(10, TimeUnit.SECONDS).schedule();
     }
 
     public void shutdown() throws ExecutionException, InterruptedException {
@@ -80,12 +80,12 @@ public class IneundoManager extends LazyListener {
         return () -> {
             var playerCount     = ineundo.getPlayers().size(); // Get the number of players connected to this proxy
             int totalPlayerLoad = playerCount * proxyManager.getOnlineProxies(); // Calculate the total player load across all proxies
-            for (ContainerType type : ContainerType.values()) {
+            for (ContainerType type : ContainerType.cachedValues()) {
 
                 int currentCapacity = futureCapacity.getOrDefault(type, 0); // Get the current player capacity for this container type
                 int loadDifference  = currentCapacity - totalPlayerLoad; // Calculate the load difference for the given container type
                 if (loadDifference < THRESHOLD) {
-                    int numberOfNeededContainers = Math.abs((int) Math.ceil((double) (THRESHOLD - loadDifference) / type.getPlayerCount()));
+                    int numberOfNeededContainers = Math.abs((int) Math.ceil((double) (THRESHOLD - loadDifference) / type.getMaxPlayerCount()));
                     for (int i = 0; i < numberOfNeededContainers; i++) {
                         containerManager.start(type);
                     }
@@ -94,9 +94,17 @@ public class IneundoManager extends LazyListener {
         };
     }
 
+    public void sendPacket(Packet packet, String routingKey) {
+        exchange.sendPacket(packet, routingKey);
+    }
+
+    public UUID getProxyId() {
+        return proxyManager.getProxyId();
+    }
+
     @Subscribe
     public void onContainerStart(ContainerStartEvent event) {
-        Ineundo.getInstance().getInfraLogger().logInfo("Start a new " + event.type() + " container name " + event.containerName());
-        futureCapacity.computeIfPresent(event.type(), (k, v) -> v + event.type().getPlayerCount());
+        IslandsLogger.getLogger().logInfo("Start a new " + event.type() + " container name " + event.containerName());
+        futureCapacity.computeIfPresent(event.type(), (k, v) -> v + event.type().getMaxPlayerCount());
     }
 }

@@ -5,12 +5,10 @@ import com.google.gson.annotations.SerializedName;
 import com.velocitypowered.api.event.connection.PreLoginEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.network.ProtocolVersion;
-import com.velocitypowered.api.proxy.InboundConnection;
-import fr.islandswars.ineundo.log.Log;
-import org.apache.logging.log4j.Level;
+import fr.islandswars.commons.log.Log;
 
-import java.net.InetSocketAddress;
 import java.util.UUID;
+import java.util.logging.Level;
 
 /**
  * File <b>PlayerConnectionLog</b> located on fr.islandswars.ineundo.log.internal
@@ -47,7 +45,7 @@ public class PlayerConnectionLog extends Log {
     private String          address;
 
     public PlayerConnectionLog(Level level, String msg) {
-        super(level, msg);
+        super(level, msg, "proxy");//TODO proper access
     }
 
     @Override

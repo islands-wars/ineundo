@@ -1,18 +1,15 @@
 package fr.islandswars.ineundo.manager;
 
-import com.velocitypowered.api.event.Subscribe;
+import fr.islandswars.commons.log.IslandsLogger;
 import fr.islandswars.commons.service.rabbitmq.packet.proxy.ProxyDownPacket;
 import fr.islandswars.commons.service.rabbitmq.packet.proxy.ProxyUpPacket;
-import fr.islandswars.commons.service.redis.RedisConnection;
 import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.lang.IneundoError;
-import fr.islandswars.ineundo.log.InternalLogger;
-import fr.islandswars.ineundo.manager.container.ContainerType;
+import fr.islandswars.ineundo.utils.RabbitConstants;
 import fr.islandswars.ineundo.utils.RedisConstants;
+import io.lettuce.core.api.async.RedisAsyncCommands;
 import net.kyori.adventure.text.Component;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
@@ -43,16 +40,16 @@ import java.util.concurrent.ExecutionException;
  */
 public class ProxyManager {
 
-    private final RedisConnection            connection;
-    private final UUID                       PROXY_ID;
-    private final InternalLogger             logger;
-    private final CopyOnWriteArrayList<UUID> proxies;
+    private final RedisAsyncCommands<String, String> redis;
+    private final UUID                               PROXY_ID;
+    private final IslandsLogger                      logger;
+    private final CopyOnWriteArrayList<UUID>         proxies;
 
-    public ProxyManager(RedisConnection connection) {
-        this.connection = connection;
+    public ProxyManager(RedisAsyncCommands<String, String> redis) {
+        this.redis = redis;
         this.PROXY_ID = UUID.randomUUID();
         this.proxies = new CopyOnWriteArrayList<>();
-        this.logger = Ineundo.getInstance().getInfraLogger();
+        this.logger = IslandsLogger.getLogger();
     }
 
     public UUID getProxyId() {
@@ -60,16 +57,14 @@ public class ProxyManager {
     }
 
     protected void registerProxy(IslandsExchange exchange) {
-        connection.getConnection().rpush(RedisConstants.PROXY, PROXY_ID.toString()).whenCompleteAsync((re, th) -> {
+        redis.rpush(RedisConstants.PROXY, PROXY_ID.toString()).whenCompleteAsync((re, th) -> {
             if (th != null) {
                 logger.logError(new IneundoError("Canno't register the proxy", th));
                 Ineundo.getInstance().getServer().shutdown(Component.translatable("proxy.startup.register.error"));
             }
-            var packet = new ProxyUpPacket();
-            packet.setProxyId(PROXY_ID);
-            exchange.sendPacketToProxies(packet);
+            exchange.sendPacket(new ProxyUpPacket().withProxyId(PROXY_ID), RabbitConstants.getProxiesQueue());
         });
-        connection.getConnection().lrange(RedisConstants.PROXY, 0, -1).whenCompleteAsync((re, th) -> {
+        redis.lrange(RedisConstants.PROXY, 0, -1).whenCompleteAsync((re, th) -> {
             if (th != null) {
                 logger.logError(new IneundoError("Canno't retrieve other proxies", th));
                 Ineundo.getInstance().getServer().shutdown(Component.translatable("proxy.startup.register.error"));
@@ -83,10 +78,8 @@ public class ProxyManager {
     }
 
     protected void shutdown(IslandsExchange exchange) throws ExecutionException, InterruptedException {
-        var packet = new ProxyDownPacket();
-        packet.setProxyId(PROXY_ID);
-        exchange.sendPacketToProxies(packet);
-        connection.getConnection().lrem(RedisConstants.PROXY, 0, PROXY_ID.toString()).get();
+        exchange.sendPacket(new ProxyDownPacket().withProxyId(PROXY_ID), RabbitConstants.getProxiesQueue());
+        redis.lrem(RedisConstants.PROXY, 0, PROXY_ID.toString()).get();
     }
 
     protected int getOnlineProxies() {

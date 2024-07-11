@@ -1,8 +1,10 @@
 package fr.islandswars.ineundo.manager.container;
 
+import fr.islandswars.commons.service.docker.ContainerType;
+
 /**
- * File <b>ContainerType</b> located on fr.islandswars.ineundo.manager.container
- * ContainerType is a part of ineundo.
+ * File <b>ContainerImage</b> located on fr.islandswars.ineundo.manager.container
+ * ContainerImage is a part of ineundo.
  * <p>
  * Copyright (c) 2017 - 2024 Islands Wars.
  * <p>
@@ -24,24 +26,17 @@ package fr.islandswars.ineundo.manager.container;
  * Created the 08/07/2024 at 13:15
  * @since 0.1
  */
-public enum ContainerType {
+public class ContainerImage {
 
-    ISLANDS("papermc-server:v1.0", 20),
-    HUB("papermc-server:v1.0", 20);
+    private static final String ISLANDS_IMAGE = "papermc-server:v1.0";
+    private static final String HUB_IMAGE     = "papermc-server:v1.0";
 
-    private final String imageID;
-    private final int    playerCount;
-
-    ContainerType(String imageID, int playerCount) {
-        this.imageID = imageID;
-        this.playerCount = playerCount;
-    }
-
-    public int getPlayerCount() {
-        return playerCount;
-    }
-
-    public String getImageID() {
-        return imageID;
+    public static String getImage(ContainerType type) {
+        var image = "";
+        switch (type) {
+            case ISLANDS -> image = ISLANDS_IMAGE;
+            case HUB -> image = HUB_IMAGE;
+        }
+        return image;
     }
 }

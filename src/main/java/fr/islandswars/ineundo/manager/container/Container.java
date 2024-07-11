@@ -1,5 +1,7 @@
 package fr.islandswars.ineundo.manager.container;
 
+import fr.islandswars.commons.service.docker.ContainerType;
+
 import java.util.UUID;
 
 /**
@@ -29,18 +31,20 @@ import java.util.UUID;
 public class Container {
 
     private final ContainerType type;
+    private final String        image;
     private final UUID          containerID;
 
-    public Container(ContainerType type) {
+    public Container(ContainerType type, String image) {
+        this.image = image;
         this.type = type;
         this.containerID = UUID.randomUUID();
     }
 
     public String getImageID() {
-        return type.getImageID();
+        return image;
     }
 
-    public UUID getServerID() {
+    public UUID getContainerID() {
         //TODO check not already used
         return containerID;
     }

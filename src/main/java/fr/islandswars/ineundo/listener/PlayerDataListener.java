@@ -9,10 +9,10 @@ import com.velocitypowered.api.event.connection.PreLoginEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.proxy.Player;
+import fr.islandswars.commons.log.IslandsLogger;
 import fr.islandswars.commons.service.collection.Collection;
 import fr.islandswars.commons.service.mongodb.MongoDBConnection;
 import fr.islandswars.commons.service.mongodb.OperationSubscriber;
-import fr.islandswars.commons.service.redis.RedisConnection;
 import fr.islandswars.commons.utils.ReflectionUtil;
 import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.lang.IneundoError;
@@ -21,8 +21,8 @@ import fr.islandswars.ineundo.player.ProxyPlayer;
 import fr.islandswars.ineundo.utils.MongoConstants;
 import fr.islandswars.ineundo.utils.ProxyConstants;
 import fr.islandswars.ineundo.utils.RedisConstants;
+import io.lettuce.core.api.async.RedisAsyncCommands;
 import net.kyori.adventure.text.Component;
-import org.apache.logging.log4j.Level;
 import org.bson.Document;
 
 import java.lang.reflect.Field;
@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.*;
+import java.util.logging.Level;
 
 /**
  * File <b>PlayerDataListener</b> located on fr.islandswars.ineundo.listener
@@ -63,9 +64,9 @@ public class PlayerDataListener extends LazyListener {
     private final TimeUnit                                mongoTimeoutUnit = TimeUnit.SECONDS;
     private final List<OperationSubscriber<UpdateResult>> pendingResults;
     private final Collection<ProxyPlayer>                 playersCollection;
-    private final RedisConnection                         redis;
+    private final RedisAsyncCommands<String, String>                         redis;
 
-    public PlayerDataListener(Ineundo ineundo, MongoDBConnection mongo, RedisConnection redis) {
+    public PlayerDataListener(Ineundo ineundo, MongoDBConnection mongo, RedisAsyncCommands<String, String> redis) {
         super(ineundo);
         this.redis = redis;
         this.pendingResults = new CopyOnWriteArrayList<>();
@@ -77,7 +78,7 @@ public class PlayerDataListener extends LazyListener {
         var uuid = event.getUniqueId();
         getIneundo().getPlayer(uuid).ifPresentOrElse(p -> {
             event.setResult(PreLoginEvent.PreLoginComponentResult.denied(Component.translatable("event.join.data.error")));
-            new PlayerConnectionLog(Level.ERROR, "Player not saved in database").withEvent(event).log();
+            new PlayerConnectionLog(Level.SEVERE, "Player not saved in database").withEvent(event).log();
         }, () -> fetchPlayerData(uuid, event));
     }
 
@@ -115,10 +116,10 @@ public class PlayerDataListener extends LazyListener {
             result.whenCompleteAsync((re, thr) -> {
                 if (thr != null) {
                     error(new IneundoError("Error when saving player data in MongoDB.", thr));
-                    getIneundo().getInfraLogger().log(Level.ERROR, playersCollection.serialize(p).toJson()); //manual save in case of problem
+                    IslandsLogger.getLogger().log(Level.SEVERE, playersCollection.serialize(p).toJson()); //manual save in case of problem
                 }
                 if (event.getLoginStatus().equals(DisconnectEvent.LoginStatus.SUCCESSFUL_LOGIN))
-                    redis.getConnection().decr(RedisConstants.PLAYER_COUNT).whenCompleteAsync((count, thro) -> {
+                    redis.decr(RedisConstants.PLAYER_COUNT).whenCompleteAsync((count, thro) -> {
                         if (thro != null)
                             error(new IneundoError("Canno't update player count", thro));
                     });
@@ -133,7 +134,7 @@ public class PlayerDataListener extends LazyListener {
             if (th != null || optPlayer.isEmpty()) {
                 //error(new IneundoError("Player " + event.getPlayer().getUsername() + " cannot be retrieved in time", th));
                 event.getPlayer().disconnect(Component.translatable("event.join.data.error"));
-                new PlayerConnectionLog(Level.ERROR, "Cannot retrieve data from mongodb in time").withEvent(event).log();
+                new PlayerConnectionLog(Level.SEVERE, "Cannot retrieve data from mongodb in time").withEvent(event).log();
             } else {
                 var player = optPlayer.get();
                 injectGameProfile(player, event.getPlayer());
@@ -147,13 +148,13 @@ public class PlayerDataListener extends LazyListener {
                     new PlayerConnectionLog(Level.INFO, "Connection attempt when the server is in maintenance").withEvent(event).log();
                 } else {
                     //TODO server offline
-                    redis.getConnection().set(RedisConstants.PLAYER_KEY(player.getUUID()), playersCollection.serialize(player).toJson()).whenCompleteAsync((re, thr) -> {
+                    redis.set(RedisConstants.PLAYER_KEY(player.getUUID()), playersCollection.serialize(player).toJson()).whenCompleteAsync((re, thr) -> {
                         if (thr != null) {
                             event.getPlayer().disconnect(Component.translatable("event.join.data.error"));
-                            new PlayerConnectionLog(Level.ERROR, "Cannot save data in redis").withEvent(event).log();
+                            new PlayerConnectionLog(Level.SEVERE, "Cannot save data in redis").withEvent(event).log();
                         } else
                             new PlayerConnectionLog(Level.INFO, "Successful connection").withEvent(event).log();
-                        redis.getConnection().incr(RedisConstants.PLAYER_COUNT).whenCompleteAsync((count, thro) -> {
+                        redis.incr(RedisConstants.PLAYER_COUNT).whenCompleteAsync((count, thro) -> {
                             if (thro != null)
                                 error(new IneundoError("Canno't update player count", thro));
                         });
@@ -164,7 +165,7 @@ public class PlayerDataListener extends LazyListener {
     }
 
     private CompletionStage<ProxyPlayer> updateFromRedis(ProxyPlayer current) {
-        return redis.getConnection().get(RedisConstants.PLAYER_KEY(current.getUUID())).thenApply((json) -> {
+        return redis.get(RedisConstants.PLAYER_KEY(current.getUUID())).thenApply((json) -> {
             if (json != null) {
                 var     retrieved = playersCollection.deserialize(Document.parse(json));
                 Field[] fields    = retrieved.getClass().getDeclaredFields();
@@ -186,7 +187,7 @@ public class PlayerDataListener extends LazyListener {
         var publisher = playersCollection.findOne(MongoConstants.PLAYER_ID_FILTER(uuid));
         publisher.thenApplyAsync(player -> {
             if (!event.getConnection().getProtocolVersion().isSupported()) {
-                new PlayerConnectionLog(Level.WARN, "Minecraft version not supported!").withEvent(event).log();
+                new PlayerConnectionLog(Level.WARNING, "Minecraft version not supported!").withEvent(event).log();
                 throw new UnsupportedOperationException("Outdated client version");
             }
             PlayerConnectionLog log;

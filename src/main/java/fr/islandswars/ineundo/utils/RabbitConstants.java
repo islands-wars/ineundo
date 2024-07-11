@@ -28,12 +28,12 @@ import java.util.UUID;
  */
 public class RabbitConstants {
 
-    public static final  String MANAGER  = "server";
+    public static final  String MANAGER  = "proxy";
     private static final String ALL      = "all";
     public static final  String EXCHANGE = "islands";
 
     public static String getProxyQueue(UUID proxyId) {
-        return MANAGER + proxyId.toString();
+        return MANAGER + "." + proxyId.toString();
     }
 
     public static String getProxiesQueue() {

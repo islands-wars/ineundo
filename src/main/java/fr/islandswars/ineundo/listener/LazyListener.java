@@ -1,6 +1,7 @@
 package fr.islandswars.ineundo.listener;
 
 import com.velocitypowered.api.proxy.ProxyServer;
+import fr.islandswars.commons.log.IslandsLogger;
 import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.player.ProxyPlayer;
 
@@ -50,12 +51,12 @@ public abstract class LazyListener {
         return server;
     }
 
-    public void log(String msg) {
-        ineundo.getInfraLogger().logInfo(msg);
+    public void log(Object msg) {
+        IslandsLogger.getLogger().logInfo(msg);
     }
 
     public void error(Exception e) {
-        ineundo.getInfraLogger().logError(e);
+        IslandsLogger.getLogger().logError(e);
     }
 
     public Optional<ProxyPlayer> getPlayer(UUID uuid) {
