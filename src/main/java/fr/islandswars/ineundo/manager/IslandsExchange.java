@@ -7,6 +7,7 @@ import fr.islandswars.commons.service.rabbitmq.RabbitMQConnection;
 import fr.islandswars.commons.service.rabbitmq.packet.Packet;
 import fr.islandswars.commons.service.rabbitmq.packet.PacketManager;
 import fr.islandswars.commons.service.rabbitmq.packet.PacketType;
+import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.utils.RabbitConstants;
 import io.lettuce.core.api.async.RedisAsyncCommands;
 
@@ -43,14 +44,14 @@ public class IslandsExchange {
     private final PacketManager       PACKET_MANAGER;
     private final RabbitMQConnection  connection;
     private final Channel             channel;
-    private final IslandsLogger      logger;
+    private final IslandsLogger       logger;
     private final UUID                proxyId;
 
-    public IslandsExchange(RabbitMQConnection connection, RedisAsyncCommands<String, String> redis, UUID proxyId) {
+    public IslandsExchange(RabbitMQConnection connection, RedisAsyncCommands<String, String> redis) {
         this.PACKET_MANAGER = new PacketManager(PacketType.Bound.MANAGER, 1024, true);
         this.logger = IslandsLogger.getLogger();
         this.connection = connection;
-        this.proxyId = proxyId;
+        this.proxyId = Ineundo.getInstance().getProxyId();
         this.channel = connection.getConnection();
         new ExchangePacketListener(PACKET_MANAGER, redis, logger);
         initConnection();
@@ -88,7 +89,6 @@ public class IslandsExchange {
                 } catch (Exception e) {
                     logger.logError(e);
                 }
-                //TODO remove
             }, consumerTag -> {
             });
         } catch (IOException e) {

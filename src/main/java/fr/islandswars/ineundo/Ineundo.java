@@ -52,6 +52,7 @@ import java.util.logging.Level;
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
  * Created the 18/06/2024 at 00:10
  * @since 0.1
+ * TODO proxy shutdown save player and disconnect server, clean redis
  */
 @Plugin(
         id = "ineundo",
@@ -71,11 +72,14 @@ public class Ineundo {
     private final  AtomicBoolean                     STAFF_ONLY;
     private final  String                            velocitySecret;
     private        IneundoManager                    manager;
+    private final  UUID                              proxyId;
+    private        String                            containerName;
 
     @Inject
     public Ineundo(ProxyServer server) {
         if (INSTANCE == null)
             INSTANCE = this;
+        this.proxyId = UUID.randomUUID();
         this.mongoConnection = new MongoDBConnection();
         this.redisConnection = new RedisConnection();
         this.rabbitMQConnection = new RabbitMQConnection();
@@ -84,7 +88,7 @@ public class Ineundo {
         this.STAFF_ONLY = new AtomicBoolean(false);
         this.server = server;
         this.velocitySecret = System.getenv(ProxyConstants.PROXY_SECRET_KEY);
-        new InternalLogger("proxy");
+        new InternalLogger(getContainerName());
     }
 
     public static Ineundo getInstance() {
@@ -112,6 +116,7 @@ public class Ineundo {
         }
 
         //listeners
+        IslandsLogger.getLogger().logInfo("Starting new proxy...");
         new PlayerDataListener(this, mongoConnection, redisConnection.getConnection());
         new ServerPingListener(this, redisConnection.getConnection());
         this.manager = new IneundoManager(this, redisConnection.getConnection(), rabbitMQConnection, dockerConnection, velocitySecret);
@@ -120,6 +125,7 @@ public class Ineundo {
 
     @Subscribe(order = PostOrder.LAST)
     public void onQuit(ProxyShutdownEvent event) {
+        IslandsLogger.getLogger().logInfo("Stoping proxy...");
         try {
             manager.shutdown();
 
@@ -147,7 +153,13 @@ public class Ineundo {
     }
 
     public UUID getProxyId() {
-        return manager.getProxyId();
+        return proxyId;
+    }
+
+    public String getContainerName() {
+        if (containerName == null)
+            this.containerName = "proxy_" + getProxyId().toString();
+        return this.containerName;
     }
 
     public ProxyServer getServer() {
@@ -175,5 +187,9 @@ public class Ineundo {
 
     public void removePlayer(ProxyPlayer player) {
         players.remove(player);
+    }
+
+    public IneundoManager getManager() {
+        return manager;
     }
 }

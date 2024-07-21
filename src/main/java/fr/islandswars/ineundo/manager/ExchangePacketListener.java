@@ -4,8 +4,11 @@ import fr.islandswars.commons.log.IslandsLogger;
 import fr.islandswars.commons.service.docker.ContainerType;
 import fr.islandswars.commons.service.rabbitmq.packet.PacketManager;
 import fr.islandswars.commons.service.rabbitmq.packet.PacketType;
+import fr.islandswars.commons.service.rabbitmq.packet.server.StatusRequestPacket;
 import fr.islandswars.ineundo.Ineundo;
+import fr.islandswars.ineundo.event.ContainerEnableEvent;
 import fr.islandswars.ineundo.event.ContainerStartEvent;
+import fr.islandswars.ineundo.event.ContainerStopEvent;
 import fr.islandswars.ineundo.lang.IneundoError;
 import fr.islandswars.ineundo.utils.RedisConstants;
 import io.lettuce.core.api.async.RedisAsyncCommands;
@@ -41,30 +44,40 @@ public class ExchangePacketListener {
 
     private final PacketManager                      PACKET_MANAGER;
     private final RedisAsyncCommands<String, String> redis;
-    private final IslandsLogger                     logger;
+    private final IslandsLogger                      logger;
+    private final Ineundo                            ineundo;
 
     public ExchangePacketListener(PacketManager PACKET_MANAGER, RedisAsyncCommands<String, String> redis, IslandsLogger logger) {
         this.PACKET_MANAGER = PACKET_MANAGER;
         this.redis = redis;
         this.logger = logger;
+        this.ineundo = Ineundo.getInstance();
         addListener();
     }
 
     private void addListener() {
         PACKET_MANAGER.addListener(PacketType.Status.CONTAINER_UP_REQUEST, (event) -> {
-            var containerName = redis.get(RedisConstants.SERVER_NAME(event.getContainerId())).toCompletableFuture();
-            var containerType = redis.get(RedisConstants.SERVER_TYPE(event.getContainerId())).toCompletableFuture();
-            CompletableFuture.allOf(containerType, containerName).whenCompleteAsync((re, th) -> {
+            var containerName   = redis.get(RedisConstants.SERVER_NAME(event.getContainerId())).toCompletableFuture();
+            var containerType   = redis.get(RedisConstants.SERVER_TYPE(event.getContainerId())).toCompletableFuture();
+            var containerStatus = redis.get(RedisConstants.SERVER_STATUS(event.getContainerId())).toCompletableFuture();
+            CompletableFuture.allOf(containerType, containerName, containerStatus).whenCompleteAsync((re, th) -> {
                 if (th != null)
-                    logger.logError(new IneundoError("Canno't retrieve container data"));
+                    logger.logError(new IneundoError("Cannot retrieve container data"));
                 try {
-                    var name = containerName.get();
-                    var type = containerType.get();
-                    Ineundo.getInstance().getServer().getEventManager().fire(new ContainerStartEvent(event.getContainerId(), ContainerType.valueOf(type), name));
+                    var name   = containerName.get();
+                    var type   = containerType.get();
+                    var status = containerStatus.get();
+                    ineundo.getServer().getEventManager().fire(new ContainerStartEvent(event.getContainerId(), ContainerType.valueOf(type), StatusRequestPacket.ServerStatus.valueOf(status), name));
                 } catch (InterruptedException | ExecutionException e) {
                     throw new RuntimeException(e);
                 }
             });
+        });
+        PACKET_MANAGER.addListener(PacketType.Status.STATUS_RESPONSE, (event) -> {
+            if (event.getStatus() == StatusRequestPacket.ServerStatus.DISABLE)
+                ineundo.getServer().getEventManager().fire(new ContainerStopEvent(event.getServerId()));
+            else if (event.getStatus() == StatusRequestPacket.ServerStatus.ENABLE)
+                ineundo.getServer().getEventManager().fire(new ContainerEnableEvent(event.getServerId()));
         });
     }
 }

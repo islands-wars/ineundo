@@ -28,12 +28,14 @@ import java.util.UUID;
  */
 public class RedisConstants {
 
-    public static  String PROXY          = "proxies";
-    private static String PLAYER         = "player";
-    private static String S_TYPE         = "type";
-    private static String S_NAME         = "name";
-    private static String S_PLAYER_COUNT = "pcount";
-    public static  String PLAYER_COUNT   = "player:count";
+    public static final  String PROXY          = "proxies";
+    public static final  String SERVER_LISTS   = "servers";
+    private static final String PLAYER         = "player";
+    private static final String S_TYPE         = "type";
+    private static final String S_NAME         = "name";
+    private static final String S_PLAYER_COUNT = "pcount";
+    private static final String S_STATUS       = "status";
+    public static final  String PLAYER_COUNT   = "player:count";
 
     public static String PLAYER_KEY(UUID uuid) {
         return uuid.toString() + ":" + PLAYER;
@@ -49,5 +51,9 @@ public class RedisConstants {
 
     public static String SERVER_PLAYER_COUNT(UUID uuid) {
         return uuid.toString() + ":" + S_PLAYER_COUNT;
+    }
+
+    public static String SERVER_STATUS(UUID uuid) {
+        return uuid.toString() + ":" + S_STATUS;
     }
 }

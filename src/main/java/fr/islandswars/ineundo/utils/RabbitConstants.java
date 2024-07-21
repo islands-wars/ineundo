@@ -1,5 +1,7 @@
 package fr.islandswars.ineundo.utils;
 
+import fr.islandswars.commons.service.docker.ContainerType;
+
 import java.util.UUID;
 
 /**
@@ -29,6 +31,7 @@ import java.util.UUID;
 public class RabbitConstants {
 
     public static final  String MANAGER  = "proxy";
+    private static final String SERVER   = "server";
     private static final String ALL      = "all";
     public static final  String EXCHANGE = "islands";
 
@@ -38,5 +41,9 @@ public class RabbitConstants {
 
     public static String getProxiesQueue() {
         return MANAGER + "." + ALL;
+    }
+
+    public static String getServerQueue(ContainerType type, UUID serverId) {
+        return SERVER + "." + type.name().toLowerCase() + "." + serverId.toString();
     }
 }

@@ -1,10 +1,12 @@
 package fr.islandswars.ineundo.manager;
 
 import fr.islandswars.commons.log.IslandsLogger;
+import fr.islandswars.commons.service.docker.ContainerType;
 import fr.islandswars.commons.service.rabbitmq.packet.proxy.ProxyDownPacket;
 import fr.islandswars.commons.service.rabbitmq.packet.proxy.ProxyUpPacket;
+import fr.islandswars.commons.service.rabbitmq.packet.server.StatusRequestPacket;
 import fr.islandswars.ineundo.Ineundo;
-import fr.islandswars.ineundo.lang.IneundoError;
+import fr.islandswars.ineundo.event.ContainerStartEvent;
 import fr.islandswars.ineundo.utils.RabbitConstants;
 import fr.islandswars.ineundo.utils.RedisConstants;
 import io.lettuce.core.api.async.RedisAsyncCommands;
@@ -40,41 +42,60 @@ import java.util.concurrent.ExecutionException;
  */
 public class ProxyManager {
 
-    private final RedisAsyncCommands<String, String> redis;
     private final UUID                               PROXY_ID;
+    private final RedisAsyncCommands<String, String> redis;
     private final IslandsLogger                      logger;
     private final CopyOnWriteArrayList<UUID>         proxies;
+    private final Ineundo                            ineundo;
 
     public ProxyManager(RedisAsyncCommands<String, String> redis) {
         this.redis = redis;
-        this.PROXY_ID = UUID.randomUUID();
+        this.PROXY_ID = Ineundo.getInstance().getProxyId();
         this.proxies = new CopyOnWriteArrayList<>();
         this.logger = IslandsLogger.getLogger();
+        this.ineundo = Ineundo.getInstance();
     }
 
-    public UUID getProxyId() {
-        return PROXY_ID;
+    protected void registerServers() {
+        try {
+            logger.logDebug("Retrieve active servers...");
+            var re = redis.lrange(RedisConstants.SERVER_LISTS, 0, -1).get();
+            if (re != null) {
+                for (String serverId : re) {
+                    var id     = UUID.fromString(serverId);
+                    var name   = redis.get(RedisConstants.SERVER_NAME(id)).get();
+                    var type   = redis.get(RedisConstants.SERVER_TYPE(id)).get();
+                    var status = StatusRequestPacket.ServerStatus.valueOf(redis.get(RedisConstants.SERVER_STATUS(id)).get());
+                    ineundo.getServer().getEventManager().fire(new ContainerStartEvent(id, ContainerType.valueOf(type), status, name));
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            logger.logError(e);
+            Ineundo.getInstance().getServer().shutdown(Component.translatable("proxy.startup.register.error"));
+        }
     }
 
     protected void registerProxy(IslandsExchange exchange) {
-        redis.rpush(RedisConstants.PROXY, PROXY_ID.toString()).whenCompleteAsync((re, th) -> {
-            if (th != null) {
-                logger.logError(new IneundoError("Canno't register the proxy", th));
-                Ineundo.getInstance().getServer().shutdown(Component.translatable("proxy.startup.register.error"));
-            }
+        try {
+            logger.logDebug("Register the proxy in redis...");
+            var re = redis.rpush(RedisConstants.PROXY, PROXY_ID.toString()).get();
             exchange.sendPacket(new ProxyUpPacket().withProxyId(PROXY_ID), RabbitConstants.getProxiesQueue());
-        });
-        redis.lrange(RedisConstants.PROXY, 0, -1).whenCompleteAsync((re, th) -> {
-            if (th != null) {
-                logger.logError(new IneundoError("Canno't retrieve other proxies", th));
-                Ineundo.getInstance().getServer().shutdown(Component.translatable("proxy.startup.register.error"));
-            }
-            for (var proxyKey : re) {
+        } catch (Exception e) {
+            logger.logError(e);
+            Ineundo.getInstance().getServer().shutdown(Component.translatable("proxy.startup.register.error"));
+        }
+        try {
+            var re = redis.lrange(RedisConstants.PROXY, 0, -1).get();
+            for (String proxyKey : re) {
                 if (!PROXY_ID.equals(UUID.fromString(proxyKey))) {
                     proxies.add(UUID.fromString(proxyKey));
                 }
             }
-        });
+        } catch (Exception e) {
+            logger.logError(e);
+            Ineundo.getInstance().getServer().shutdown(Component.translatable("proxy.startup.register.error"));
+        }
     }
 
     protected void shutdown(IslandsExchange exchange) throws ExecutionException, InterruptedException {

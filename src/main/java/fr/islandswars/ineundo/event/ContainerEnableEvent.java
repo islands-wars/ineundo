@@ -1,13 +1,10 @@
 package fr.islandswars.ineundo.event;
 
-import fr.islandswars.commons.service.docker.ContainerType;
-import fr.islandswars.commons.service.rabbitmq.packet.server.StatusRequestPacket;
-
 import java.util.UUID;
 
 /**
- * File <b>ContainerStartEvent</b> located on fr.islandswars.ineundo.event
- * ContainerStartEvent is a part of ineundo.
+ * File <b>ContainerEnableEvent</b> located on fr.islandswars.ineundo.event
+ * ContainerEnableEvent is a part of ineundo.
  * <p>
  * Copyright (c) 2017 - 2024 Islands Wars.
  * <p>
@@ -26,9 +23,8 @@ import java.util.UUID;
  * <p>
  *
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
- * Created the 08/07/2024 at 18:03
+ * Created the 21/07/2024 at 13:53
  * @since 0.1
  */
-public record ContainerStartEvent(UUID containerId, ContainerType type, StatusRequestPacket.ServerStatus status, String containerName) {
-
+public record ContainerEnableEvent(UUID containerId) {
 }

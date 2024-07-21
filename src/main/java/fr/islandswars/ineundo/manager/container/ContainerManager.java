@@ -10,6 +10,7 @@ import fr.islandswars.commons.service.ServiceType;
 import fr.islandswars.commons.service.docker.ContainerType;
 import fr.islandswars.commons.service.docker.DockerConnection;
 import fr.islandswars.commons.service.rabbitmq.packet.proxy.ContainerUpPacket;
+import fr.islandswars.commons.service.rabbitmq.packet.server.StatusRequestPacket;
 import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.lang.IneundoError;
 import fr.islandswars.ineundo.utils.ProxyConstants;
@@ -82,25 +83,31 @@ public class ContainerManager {
             return re;
         }).whenCompleteAsync((re, th) -> {
             if (th != null) {
-                th.printStackTrace();
-                logger.logError(new IneundoError("Canno't start the container.", th));
+                logger.logError(new IneundoError("Cannot start the container.", th));
             } else {
                 var op1 = redis.set(RedisConstants.SERVER_NAME(container.getContainerID()), container.getContainerName()).toCompletableFuture();
                 var op2 = redis.set(RedisConstants.SERVER_TYPE(container.getContainerID()), type.name()).toCompletableFuture();
                 var op3 = redis.set(RedisConstants.SERVER_PLAYER_COUNT(container.getContainerID()), "0").toCompletableFuture();
-                CompletableFuture.allOf(op1, op2, op3).whenCompleteAsync((r, thr) -> {
+                var op4 = redis.set(RedisConstants.SERVER_STATUS(container.getContainerID()), StatusRequestPacket.ServerStatus.LOAD.toString()).toCompletableFuture();
+                var op5 = redis.lpush(RedisConstants.SERVER_LISTS, container.getContainerID().toString()).toCompletableFuture();
+                CompletableFuture.allOf(op1, op2, op3, op4, op5).whenCompleteAsync((r, thr) -> {
                     if (thr != null)
-                        logger.logError(new IneundoError("Canno't set container data in redis"));
+                        logger.logError(new IneundoError("Cannot set container data in redis"));
 
                     Ineundo.getInstance().sendPacketToProxies(new ContainerUpPacket().withContainerId(container.getContainerID()).withProxyId(Ineundo.getInstance().getProxyId()));
                 });
-
             }
         });
     }
 
-    public void stop() {
-
+    public void delete(String containerName) {
+        CompletableFuture.runAsync(() -> {
+            dockerClient.stopContainerCmd(containerName).exec();
+            dockerClient.removeContainerCmd(containerName).exec();
+        }).whenCompleteAsync((re, th) -> {
+            if (th != null)
+                logger.logError(new IneundoError("Cannot remove container " + containerName, th));
+        });
     }
 
     //TODO remove or add debug spec

@@ -12,7 +12,6 @@ import com.velocitypowered.api.proxy.Player;
 import fr.islandswars.commons.log.IslandsLogger;
 import fr.islandswars.commons.service.collection.Collection;
 import fr.islandswars.commons.service.mongodb.MongoDBConnection;
-import fr.islandswars.commons.service.mongodb.OperationSubscriber;
 import fr.islandswars.commons.utils.ReflectionUtil;
 import fr.islandswars.ineundo.Ineundo;
 import fr.islandswars.ineundo.lang.IneundoError;
@@ -31,7 +30,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 /**
@@ -60,11 +62,11 @@ import java.util.logging.Level;
  */
 public class PlayerDataListener extends LazyListener {
 
-    private final long                                    mongoTimeout     = 1L;
-    private final TimeUnit                                mongoTimeoutUnit = TimeUnit.SECONDS;
-    private final List<OperationSubscriber<UpdateResult>> pendingResults;
-    private final Collection<ProxyPlayer>                 playersCollection;
-    private final RedisAsyncCommands<String, String>                         redis;
+    private final long                               mongoTimeout     = 1L;
+    private final TimeUnit                           mongoTimeoutUnit = TimeUnit.SECONDS;
+    private final List<UUID>                         pendingResults;
+    private final Collection<ProxyPlayer>            playersCollection;
+    private final RedisAsyncCommands<String, String> redis;
 
     public PlayerDataListener(Ineundo ineundo, MongoDBConnection mongo, RedisAsyncCommands<String, String> redis) {
         super(ineundo);
@@ -94,12 +96,20 @@ public class PlayerDataListener extends LazyListener {
     public void onPlayerDisconnect(DisconnectEvent event) {
         var uuid      = event.getPlayer().getUniqueId();
         var optPlayer = getPlayer(uuid);
-        optPlayer.ifPresent(p -> savePlayerData(p, event));
+        optPlayer.ifPresent(p -> {
+            pendingResults.add(uuid);
+            savePlayerData(p, event);
+        });
     }
 
     @Subscribe(order = PostOrder.FIRST)
     public void onProxyShutdown(ProxyShutdownEvent event) {
         while (!pendingResults.isEmpty()) {
+            try {
+                Thread.sleep(100);
+            } catch (Exception e) {
+                error(e);
+            }
         }
     }
 
@@ -109,7 +119,6 @@ public class PlayerDataListener extends LazyListener {
                 error(new IneundoError("Error when retrieving player data from Redis", th));
 
             var subscriber = playersCollection.replace(p, MongoConstants.PLAYER_ID_FILTER(p.getUUID()));
-            pendingResults.add(subscriber);
 
             CompletableFuture<UpdateResult> result = new CompletableFuture<>();
             result.completeAsync(subscriber::first).orTimeout(mongoTimeout, mongoTimeoutUnit);
@@ -124,7 +133,7 @@ public class PlayerDataListener extends LazyListener {
                             error(new IneundoError("Canno't update player count", thro));
                     });
                 getIneundo().removePlayer(player);
-                pendingResults.remove(subscriber);
+                pendingResults.remove(player.getUUID());
             });
         });
     }
