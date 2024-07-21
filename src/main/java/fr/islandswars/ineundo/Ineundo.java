@@ -52,7 +52,6 @@ import java.util.logging.Level;
  * @author Jangliu, {@literal <jangliu@islandswars.fr>}
  * Created the 18/06/2024 at 00:10
  * @since 0.1
- * TODO proxy shutdown save player and disconnect server, clean redis
  */
 @Plugin(
         id = "ineundo",

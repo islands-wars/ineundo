@@ -5,6 +5,9 @@ services:
     environment:
       TYPE: "VELOCITY"
       VELOCITY_SECRET: "jfei7Ua34jhQ"
+    labels:
+      logging: "promtail"
+      logging_jobname: "containerlogs"
     ports:
       - '25565:25565'
     volumes:
@@ -92,12 +95,65 @@ services:
       - redis_username
     networks:
       - islands_network
+    ports:
+      - "6379:6379"
     healthcheck:
       test: [ "CMD-SHELL", "redis-cli -u redis://$(cat /run/secrets/redis_username):$(cat /run/secrets/redis_password)@redis:6379 PING | grep -q PONG" ]
       interval: 2s
       timeout: 10s
       retries: 5
       start_period: 5s
+
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: loki
+    volumes:
+      - ./loki:/etc/loki
+    command: -config.file=/etc/loki/loki-config.yml
+    networks:
+      - islands_network
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: promtail
+    volumes:
+      - ./promtail:/etc/promtail
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers:/var/lib/docker/containers
+    command: -config.file=/etc/promtail/promtail-config.yml
+    networks:
+      - islands_network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        mkdir -p /etc/grafana/provisioning/datasources
+        cat <<EOF > /etc/grafana/provisioning/datasources/ds.yaml
+        apiVersion: 1
+        datasources:
+        - name: Loki
+          type: loki
+          access: proxy
+          orgId: 1
+          url: http://loki:3100
+          basicAuth: false
+          isDefault: true
+          version: 1
+          editable: false
+        EOF
+        /run.sh
+    networks:
+      - islands_network
 
 networks:
   islands_network:

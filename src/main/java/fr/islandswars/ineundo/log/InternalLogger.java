@@ -6,6 +6,8 @@ import fr.islandswars.commons.log.IslandsLogger;
 import fr.islandswars.commons.log.LevelTypeAdapter;
 import fr.islandswars.commons.log.Log;
 import fr.islandswars.commons.log.StackTraceElementTypeAdapter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
 
 import java.net.URISyntaxException;
@@ -37,12 +39,14 @@ import java.util.logging.Level;
  */
 public class InternalLogger extends IslandsLogger {
 
-    private final Gson gson;
+    private final Logger logger;
+    private final Gson   gson;
 
     public InternalLogger(String containerName) {
         super(containerName);
         this.gson = new GsonBuilder().registerTypeAdapter(Level.class, new LevelTypeAdapter()).registerTypeAdapter(StackTraceElement.class, new StackTraceElementTypeAdapter()).create();
-        //overrideDefault(); //TODO update
+        this.logger = (Logger) LogManager.getRootLogger();
+        overrideDefault(); //TODO update
     }
 
     private void overrideDefault() {
@@ -55,6 +59,6 @@ public class InternalLogger extends IslandsLogger {
 
     @Override
     public void sysout(Log log) {
-        System.out.println(gson.toJson(log));
+        logger.log(org.apache.logging.log4j.Level.INFO, gson.toJson(log));
     }
 }

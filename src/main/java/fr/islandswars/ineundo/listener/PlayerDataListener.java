@@ -132,6 +132,7 @@ public class PlayerDataListener extends LazyListener {
                         if (thro != null)
                             error(new IneundoError("Canno't update player count", thro));
                     });
+                redis.del(RedisConstants.PLAYER_KEY(event.getPlayer().getUniqueId()));
                 getIneundo().removePlayer(player);
                 pendingResults.remove(player.getUUID());
             });

@@ -6,26 +6,14 @@
   <component name="ChangeListManager">
     <list default="true" id="0f1eaf85-7e2c-4f8c-bae6-8f5094e9a009" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/compose.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/compose.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/Ineundo.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/Ineundo.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/event/ContainerStartEvent.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/event/ContainerStartEvent.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/manager/ExchangePacketListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/manager/ExchangePacketListener.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/manager/IneundoManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/manager/IneundoManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/manager/IslandsExchange.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/manager/IslandsExchange.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/manager/ProxyManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/manager/ProxyManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/manager/container/ContainerManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/manager/container/ContainerManager.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/utils/RabbitConstants.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/utils/RabbitConstants.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/utils/RedisConstants.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/utils/RedisConstants.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/listener/PlayerDataListener.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/fr/islandswars/ineundo/listener/PlayerDataListener.java" afterDir="false" />
       <change beforePath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/.idea/workspace.xml" beforeDir="false" afterPath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/compose.yaml" beforeDir="false" afterPath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/compose.yaml" afterDir="false" />
       <change beforePath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/Ineundo.java" beforeDir="false" afterPath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/Ineundo.java" afterDir="false" />
-      <change beforePath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/event/ContainerStartEvent.java" beforeDir="false" afterPath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/event/ContainerStartEvent.java" afterDir="false" />
       <change beforePath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/listener/PlayerDataListener.java" beforeDir="false" afterPath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/listener/PlayerDataListener.java" afterDir="false" />
-      <change beforePath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/manager/ExchangePacketListener.java" beforeDir="false" afterPath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/manager/ExchangePacketListener.java" afterDir="false" />
-      <change beforePath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/manager/IneundoManager.java" beforeDir="false" afterPath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/manager/IneundoManager.java" afterDir="false" />
-      <change beforePath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/manager/IslandsExchange.java" beforeDir="false" afterPath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/manager/IslandsExchange.java" afterDir="false" />
-      <change beforePath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/manager/ProxyManager.java" beforeDir="false" afterPath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/manager/ProxyManager.java" afterDir="false" />
-      <change beforePath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/manager/container/ContainerManager.java" beforeDir="false" afterPath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/manager/container/ContainerManager.java" afterDir="false" />
-      <change beforePath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/utils/RabbitConstants.java" beforeDir="false" afterPath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/utils/RabbitConstants.java" afterDir="false" />
-      <change beforePath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/utils/RedisConstants.java" beforeDir="false" afterPath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/utils/RedisConstants.java" afterDir="false" />
+      <change beforePath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/log/InternalLogger.java" beforeDir="false" afterPath="$USER_HOME$/OneDrive/Documents/Code/islands wars/v2/ineundo/src/main/java/fr/islandswars/ineundo/log/InternalLogger.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -104,7 +92,10 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "Docker.Grafana.executor": "Run",
+    "Docker.Loki.executor": "Run",
     "Docker.Mongo.executor": "Run",
+    "Docker.Promtail.executor": "Run",
     "Docker.Proxy alone.executor": "Run",
     "Docker.Proxy.executor": "Run",
     "Docker.Redis.executor": "Run",
@@ -127,6 +118,11 @@
     "project.structure.side.proportion": "0.0",
     "settings.editor.selected.configurable": "preferences.intentionPowerPack",
     "vue.rearranger.settings.migration": "true"
+  },
+  "keyToStringList": {
+    "DatabaseDriversLRU": [
+      "redis"
+    ]
   }
 }]]></component>
   <component name="RunManager" selected="Docker.Proxy">
@@ -187,6 +183,34 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <configuration name="Grafana" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker">
+      <deployment type="docker-compose.yml">
+        <settings>
+          <option name="envFilePath" value="" />
+          <option name="services">
+            <list>
+              <option value="grafana" />
+            </list>
+          </option>
+          <option name="sourceFilePath" value="../../../../../../OneDrive/Documents/Code/islands wars/v2/ineundo/compose.yaml" />
+        </settings>
+      </deployment>
+      <method v="2" />
+    </configuration>
+    <configuration name="Loki" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker">
+      <deployment type="docker-compose.yml">
+        <settings>
+          <option name="envFilePath" value="" />
+          <option name="services">
+            <list>
+              <option value="loki" />
+            </list>
+          </option>
+          <option name="sourceFilePath" value="../../../../../../OneDrive/Documents/Code/islands wars/v2/ineundo/compose.yaml" />
+        </settings>
+      </deployment>
+      <method v="2" />
+    </configuration>
     <configuration name="Mongo" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker">
       <deployment type="docker-compose.yml">
         <settings>
@@ -201,13 +225,13 @@
       </deployment>
       <method v="2" />
     </configuration>
-    <configuration name="Proxy alone" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker">
+    <configuration name="Promtail" type="docker-deploy" factoryName="docker-compose.yml" server-name="Docker">
       <deployment type="docker-compose.yml">
         <settings>
           <option name="envFilePath" value="" />
           <option name="services">
             <list>
-              <option value="proxy" />
+              <option value="promtail" />
             </list>
           </option>
           <option name="sourceFilePath" value="../../../../../../OneDrive/Documents/Code/islands wars/v2/ineundo/compose.yaml" />
@@ -264,8 +288,10 @@
     </configuration>
     <list>
       <item itemvalue="Docker.Proxy" />
-      <item itemvalue="Docker.Proxy alone" />
       <item itemvalue="Docker.Rmq" />
+      <item itemvalue="Docker.Loki" />
+      <item itemvalue="Docker.Promtail" />
+      <item itemvalue="Docker.Grafana" />
       <item itemvalue="Docker.Mongo" />
       <item itemvalue="Docker.Redis" />
       <item itemvalue="Gradle.ineundo::home:val:OneDrive:Documents:Code:islands wars:v2:ineundo [shadowJar]" />
@@ -310,7 +336,7 @@
       <workItem from="1721498943744" duration="787000" />
       <workItem from="1721562115214" duration="3209000" />
       <workItem from="1721565879262" duration="19000" />
-      <workItem from="1721566046698" duration="8085000" />
+      <workItem from="1721566046698" duration="11412000" />
     </task>
     <servers />
   </component>
